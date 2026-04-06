@@ -56,7 +56,7 @@ Best for:
 Windows PowerShell:
 
 ```powershell
-cd D:\Data\Lectures\20252\MobiCom\Codex\5GNRPHYSITL\5gnr_phy_stl
+cd C:\path\to\5gnr_phy_stl
 py -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
@@ -356,7 +356,7 @@ Recommended for:
 PowerShell:
 
 ```powershell
-cd D:\Data\Lectures\20252\MobiCom\Codex\5GNRPHYSITL\5gnr_phy_stl
+cd C:\path\to\5gnr_phy_stl
 py -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
