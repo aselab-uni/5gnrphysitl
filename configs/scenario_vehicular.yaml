@@ -1,0 +1,15 @@
+link:
+  channel_type: data
+modulation:
+  scheme: 16QAM
+coding:
+  target_rate: 0.55
+channel:
+  model: rayleigh
+  profile: vehicular
+  fading_type: rayleigh
+  snr_db: 14
+  doppler_hz: 140
+  delay_spread_s: 1.76e-6
+  cfo_hz: 45
+  sto_samples: 6

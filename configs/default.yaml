@@ -1,0 +1,75 @@
+simulation:
+  seed: 7
+  output_dir: outputs
+  use_gnuradio: false
+
+link:
+  direction: downlink
+  channel_type: data
+  compare_mode: false
+
+carrier:
+  center_frequency_hz: 3.5e9
+  bandwidth_hz: 1.0e7
+
+numerology:
+  scs_khz: 30
+  fft_size: 512
+  cp_length: 36
+  n_rb: 24
+  symbols_per_slot: 14
+  slots_per_frame: 10
+
+frame:
+  control_symbols: 2
+  pdsch_start_symbol: 2
+  control_subcarriers: 72
+  dmrs_symbols: [3, 10]
+
+transport_block:
+  size_bits: 1024
+
+control_channel:
+  payload_bits: 128
+  modulation: QPSK
+
+coding:
+  scheme: ldpc_inspired
+  crc: crc16
+  control_crc: crc8
+  target_rate: 0.5
+  control_rate: 0.25
+  redundancy_version: 0
+
+modulation:
+  scheme: QPSK
+
+scrambling:
+  nid: 42
+  rnti: 4660
+
+channel:
+  model: awgn
+  profile: static_near
+  fading_type: rayleigh
+  snr_db: 40.0
+  delay_spread_s: 0.0
+  doppler_hz: 0.0
+  distance_m: 10.0
+  path_loss_db: 0.0
+  shadowing_std_db: 0.0
+  k_factor_db: 8.0
+  cfo_hz: 0.0
+  sto_samples: 0
+  phase_noise_std: 0.0
+  iq_imbalance_db: 0.0
+
+receiver:
+  equalizer: mmse
+  perfect_sync: true
+  perfect_channel_estimation: true
+  timing_search_window: 96
+  cfo_symbols_to_average: 4
+
+gui:
+  refresh_ms: 250

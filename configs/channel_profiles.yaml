@@ -1,0 +1,32 @@
+profiles:
+  static_near:
+    model: awgn
+    profile: static_near
+    fading_type: rayleigh
+    doppler_hz: 0
+    delay_spread_s: 0
+  cell_edge:
+    model: rayleigh
+    profile: cell_edge
+    fading_type: rayleigh
+    doppler_hz: 15
+    delay_spread_s: 2.2e-7
+  vehicular:
+    model: rayleigh
+    profile: vehicular
+    fading_type: rayleigh
+    doppler_hz: 120
+    delay_spread_s: 1.76e-6
+  urban_los:
+    model: rician
+    profile: urban_los
+    fading_type: rician
+    doppler_hz: 30
+    delay_spread_s: 8.0e-7
+    k_factor_db: 10
+  urban_nlos:
+    model: rayleigh
+    profile: urban_nlos
+    fading_type: rayleigh
+    doppler_hz: 40
+    delay_spread_s: 1.8e-6

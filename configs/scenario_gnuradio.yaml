@@ -1,0 +1,13 @@
+simulation:
+  use_gnuradio: true
+
+channel:
+  model: awgn
+  snr_db: 30.0
+  cfo_hz: 0.0
+  sto_samples: 0
+  phase_noise_std: 0.0
+
+receiver:
+  perfect_sync: true
+  perfect_channel_estimation: true

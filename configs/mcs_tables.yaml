@@ -1,0 +1,8 @@
+mcs_table:
+  0: {modulation: QPSK, target_rate: 0.12}
+  4: {modulation: QPSK, target_rate: 0.37}
+  9: {modulation: 16QAM, target_rate: 0.48}
+  14: {modulation: 16QAM, target_rate: 0.66}
+  19: {modulation: 64QAM, target_rate: 0.60}
+  24: {modulation: 64QAM, target_rate: 0.77}
+  27: {modulation: 256QAM, target_rate: 0.80}

@@ -1,0 +1,7 @@
+transport_block:
+  size_bits: 1024
+modulation:
+  scheme: QPSK
+coding:
+  scheme: ldpc_inspired
+  target_rate: 0.50

@@ -1,0 +1,15 @@
+# Core scientific stack
+numpy>=1.24
+scipy>=1.10
+matplotlib>=3.7
+pandas>=2.0
+PyYAML>=6.0
+
+# GUI
+PyQt5>=5.15
+
+# Testing
+pytest>=8.0
+
+# GNU Radio is intentionally optional here because installation is platform-specific.
+# Install GNU Radio 3.10+ via Conda, system packages, or the official distribution.
