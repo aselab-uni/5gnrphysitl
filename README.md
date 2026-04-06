@@ -145,18 +145,20 @@ run_batch_ber.bat
 run_gnuradio.bat
 run_vehicular.bat
 run_student_testcases.bat
+run_showcases.bat
 ```
 
 ### Linux/macOS `.sh`
 
 ```bash
-chmod +x run_python_only.sh run_gui.sh run_batch_ber.sh run_gnuradio.sh run_vehicular.sh run_student_testcases.sh
+chmod +x run_python_only.sh run_gui.sh run_batch_ber.sh run_gnuradio.sh run_vehicular.sh run_student_testcases.sh run_showcases.sh
 ./run_python_only.sh
 ./run_gui.sh
 ./run_batch_ber.sh
 ./run_gnuradio.sh
 ./run_vehicular.sh
 ./run_student_testcases.sh
+./run_showcases.sh
 ```
 
 ### `Makefile` targets
@@ -168,6 +170,7 @@ make batch-ber
 make gnuradio
 make vehicular
 make student-cases
+make showcases
 make test
 make compile
 ```
@@ -178,6 +181,7 @@ Notes:
 - Extra command-line arguments are passed through to the underlying Python command.
 - `make test` requires `pytest` to be installed in the active environment.
 - For a classroom-oriented walkthrough, see `docs/STUDENT_TESTCASES.md`.
+- For deeper 3GPP-inspired teaching demos, see `docs/SHOWCASES_3GPP_PHY.md`.
 
 ## 1. Problem Analysis
 

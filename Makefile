@@ -2,7 +2,7 @@ PYTHON ?= python
 CONFIG ?= configs/default.yaml
 OUTPUT_DIR ?= outputs
 
-.PHONY: help run gui batch-ber gnuradio vehicular student-cases test compile
+.PHONY: help run gui batch-ber gnuradio vehicular student-cases showcases test compile
 
 help:
 	@echo "Available targets:"
@@ -12,6 +12,7 @@ help:
 	@echo "  make gnuradio    - Run with GNU Radio loopback override"
 	@echo "  make vehicular   - Run the harsher vehicular scenario"
 	@echo "  make student-cases - Run curated teaching-oriented testcases"
+	@echo "  make showcases   - Run advanced 3GPP-inspired PHY showcases"
 	@echo "  make test        - Run pytest"
 	@echo "  make compile     - Compile all Python files"
 
@@ -32,6 +33,9 @@ vehicular:
 
 student-cases:
 	$(PYTHON) run_student_testcases.py --config $(CONFIG) --output-dir outputs/student_testcases
+
+showcases:
+	$(PYTHON) run_showcases.py --config $(CONFIG) --output-dir outputs/showcases
 
 test:
 	$(PYTHON) -m pytest tests -q
