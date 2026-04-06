@@ -16,6 +16,41 @@ Important interpretation note:
 - The PHY logic follows NR terminology and processing structure.
 - Numerical thresholds in this prototype should be treated as **teaching outcomes of the current model**, not as conformance-grade NR reference values.
 
+## Teaching Model vs Conformance-Grade NR PHY Checklist
+
+Use this checklist whenever you interpret results from this repository.
+
+### If the answer is mostly "yes", you are likely looking at a teaching model
+
+- Does the simulator explicitly label parts as `simplified`, `inspired`, or `prototype`?
+- Are some PHY blocks implemented with placeholders such as `LDPC-inspired` or `polar-like` coding?
+- Are there options such as perfect synchronization or perfect channel estimation?
+- Is the goal to explain trends, intuition, and design tradeoffs rather than to match a standard test vector bit-for-bit?
+- Are the scenarios mainly used to help students understand BER, BLER, EVM, modulation, DMRS, and fading?
+
+### If the answer is mostly "yes", you are likely looking for conformance-grade behavior
+
+- Do you need exact 3GPP-compliant LDPC, Polar, CRC, segmentation, rate matching, and RV behavior?
+- Do you need exact CORESET/PDCCH/PDSCH mapping and reference-signal structure?
+- Do you need standardized channel/test conditions tied to specific 3GPP validation procedures?
+- Do you need bit-true or tolerance-bounded comparison against known reference vectors?
+- Do you need confidence that the implementation can support formal verification, interoperability, or pre-product validation?
+
+### Quick rule for students
+
+- `Teaching model`: use it to learn **why** the PHY behaves the way it does.
+- `Conformance-grade PHY`: use it to verify **whether** an implementation behaves exactly as the standard requires.
+
+### What this project is today
+
+This repository is a **teaching and research-oriented PHY platform** with strong NR terminology and structure, but it is **not** a conformance-grade 3GPP NR PHY.
+
+That means:
+
+- the system is very useful for learning, experimentation, and architecture studies
+- the trends are meaningful
+- the exact thresholds and detailed performance boundaries should not be treated as certification-grade NR reference data
+
 ## How To Run the Showcase Bundle
 
 Windows:
