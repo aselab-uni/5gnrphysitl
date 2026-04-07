@@ -57,11 +57,13 @@ Windows PowerShell:
 
 ```powershell
 cd C:\path\to\5gnr_phy_stl
-py -m venv .venv
+python -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
+
+If `python` works but `py` does not, that is normal on some Windows setups. Use `python -m venv .venv`.
 
 If PowerShell blocks `.venv\Scripts\Activate.ps1`, use one of these alternatives:
 
@@ -462,11 +464,13 @@ PowerShell:
 
 ```powershell
 cd C:\path\to\5gnr_phy_stl
-py -m venv .venv
+python -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
+
+If your system does not recognize `py`, use `python -m venv .venv` as shown above.
 
 If PowerShell blocks `.venv\Scripts\Activate.ps1`, either use:
 
