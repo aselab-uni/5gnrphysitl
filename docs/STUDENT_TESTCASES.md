@@ -60,6 +60,21 @@ Outputs:
 - `outputs/student_testcases/student_testcases.csv`
 - `outputs/student_testcases/student_testcases.md`
 
+## Run One Testcase Only
+
+If you want to run only one testcase instead of the full teaching bundle, use `--case-id`:
+
+```bash
+python run_student_testcases.py --config configs/default.yaml --case-id TC2 --output-dir outputs/student_testcases_tc2
+```
+
+Useful options:
+
+- `python run_student_testcases.py --list-cases`
+- `python run_student_testcases.py --config configs/default.yaml --case-id TC3 --output-dir outputs/student_testcases_tc3`
+- `python run_student_testcases.py --config configs/default.yaml --case-id TC5 --output-dir outputs/student_testcases_tc5`
+- repeat `--case-id` to combine cases, for example `--case-id TC2 --case-id TC3`
+
 ## Testcase 1: Clean Baseline Link
 
 ### Purpose
@@ -98,10 +113,13 @@ Show that higher-order modulation needs a higher SNR to become reliable.
 ### Command
 
 ```bash
-python run_student_testcases.py --config configs/default.yaml --output-dir outputs/student_testcases
+python run_student_testcases.py --config configs/default.yaml --case-id TC2 --output-dir outputs/student_testcases_tc2
 ```
 
-Look for the rows with `case_id = TC2`.
+This command generates only the `TC2` sweep rows in:
+
+- `outputs/student_testcases_tc2/student_testcases.csv`
+- `outputs/student_testcases_tc2/student_testcases.md`
 
 ### Sample result from this repository
 
@@ -129,10 +147,13 @@ Show that the same nominal SNR can lead to different effective received quality 
 ### Command
 
 ```bash
-python run_student_testcases.py --config configs/default.yaml --output-dir outputs/student_testcases
+python run_student_testcases.py --config configs/default.yaml --case-id TC3 --output-dir outputs/student_testcases_tc3
 ```
 
-Look for the rows with `case_id = TC3`.
+This command generates only the `TC3` channel-profile comparison rows in:
+
+- `outputs/student_testcases_tc3/student_testcases.csv`
+- `outputs/student_testcases_tc3/student_testcases.md`
 
 ### Sample result from this repository
 
@@ -189,10 +210,13 @@ Teach students how to interpret a simplified simulator critically.
 ### Command
 
 ```bash
-python run_student_testcases.py --config configs/default.yaml --output-dir outputs/student_testcases
+python run_student_testcases.py --config configs/default.yaml --case-id TC5 --output-dir outputs/student_testcases_tc5
 ```
 
-Look for the rows with `case_id = TC5`.
+This command generates only the `TC5` control-vs-data rows in:
+
+- `outputs/student_testcases_tc5/student_testcases.csv`
+- `outputs/student_testcases_tc5/student_testcases.md`
 
 ### Sample result from this repository at -4 dB
 
