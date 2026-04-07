@@ -294,6 +294,7 @@ Notes:
 - `make test` requires `pytest` to be installed in the active environment.
 - For a classroom-oriented walkthrough, see `docs/STUDENT_TESTCASES.md`.
 - For deeper 3GPP-inspired teaching demos, see `docs/SHOWCASES_3GPP_PHY.md`.
+- For GUI parameter meanings, ranges, units, and symbols, see `docs/SIMULATION_PARAMETER_REFERENCE.md`.
 - `docs/SHOWCASES_3GPP_PHY.md` also includes a checklist to distinguish a teaching model from a conformance-grade NR PHY.
 
 ## 1. Problem Analysis
