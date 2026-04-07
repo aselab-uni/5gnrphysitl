@@ -55,6 +55,12 @@ That means:
 
 Windows:
 
+```powershell
+.\run_showcases.bat
+```
+
+If you are using `cmd.exe` instead of PowerShell:
+
 ```cmd
 run_showcases.bat
 ```

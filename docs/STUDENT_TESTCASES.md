@@ -38,6 +38,12 @@ You can run the curated testcase bundle with:
 
 Windows:
 
+```powershell
+.\run_student_testcases.bat
+```
+
+If you are using `cmd.exe` instead of PowerShell:
+
 ```cmd
 run_student_testcases.bat
 ```
