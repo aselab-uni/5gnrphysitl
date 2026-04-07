@@ -63,6 +63,18 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
+If PowerShell blocks `.venv\Scripts\Activate.ps1`, use one of these alternatives:
+
+```cmd
+.venv\Scripts\activate.bat
+```
+
+or run the virtual-environment Python directly without activation:
+
+```powershell
+.venv\Scripts\python.exe main.py --config configs/default.yaml
+```
+
 Ubuntu/macOS:
 
 ```bash
@@ -370,6 +382,18 @@ py -m venv .venv
 .venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 pip install -r requirements.txt
+```
+
+If PowerShell blocks `.venv\Scripts\Activate.ps1`, either use:
+
+```cmd
+.venv\Scripts\activate.bat
+```
+
+or call the interpreter directly:
+
+```powershell
+.venv\Scripts\python.exe main.py --config configs/default.yaml
 ```
 
 #### Option B: Full stack with Conda and GNU Radio
