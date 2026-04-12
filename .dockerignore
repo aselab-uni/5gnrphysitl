@@ -1,0 +1,15 @@
+.git
+.github
+.venv
+.pytest_cache
+__pycache__
+*.py[cod]
+*.egg-info
+build
+dist
+outputs
+outputs_smoke
+.mypy_cache
+.coverage
+Thumbs.db
+.DS_Store

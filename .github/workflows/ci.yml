@@ -53,6 +53,10 @@ jobs:
       - name: Build wheel and sdist
         run: python -m build
 
+      - name: Build container image
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
+        run: docker build -t fivegnr-phy-stl-ci .
+
       - name: Upload build artifacts
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
         uses: actions/upload-artifact@v4

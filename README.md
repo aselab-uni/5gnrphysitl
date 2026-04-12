@@ -108,8 +108,47 @@ GitHub Actions workflows are included under [`.github/workflows`](D:/Data/Lectur
   - builds wheel and sdist
   - uploads them as workflow artifacts
   - attaches them to the GitHub release automatically
+- `container.yml`
+  - runs on pushes to `main`, on tag pushes matching `v*`, and on manual dispatch
+  - builds a Docker image from [`Dockerfile`](D:/Data/Lectures/20252/MobiCom/Codex/5GNRPHYSITL/5gnr_phy_stl/Dockerfile)
+  - publishes the image to GitHub Container Registry (`ghcr.io`)
+  - is the workflow that populates the repository `Packages` tab
 
-This means each commit can be validated and packaged automatically, while tagged releases also publish build artifacts to GitHub.
+This means each commit can be validated and packaged automatically, tagged releases publish build artifacts to GitHub Releases, and successful container publishing creates an actual package entry under GitHub `Packages`.
+
+## GitHub Packages vs Build Artifacts
+
+The repository now exposes two different delivery channels:
+
+- `Actions artifacts` and `Release assets`
+  - produced by `ci.yml` and `release.yml`
+  - contain `dist/*.whl` and `dist/*.tar.gz`
+  - visible from workflow runs and GitHub Releases
+- `GitHub Packages`
+  - produced by `container.yml`
+  - contain a container image in GitHub Container Registry
+  - visible from the repository `Packages` tab only after the container publish job succeeds
+
+If the `Packages` tab is empty, the usual reason is that only Python build artifacts were uploaded, while no package registry publication happened yet.
+
+## Container Image
+
+The project now includes a container image path for headless and CI use:
+
+- image name: `ghcr.io/aselab-uni/5gnrphysitl`
+
+Typical commands:
+
+```bash
+docker pull ghcr.io/aselab-uni/5gnrphysitl:latest
+docker run --rm ghcr.io/aselab-uni/5gnrphysitl:latest --help
+```
+
+Important notes:
+
+- This image is intended for CLI/headless execution, batch experiments, and CI validation.
+- The desktop GUI is not the primary target inside the container.
+- The repository `Packages` tab will show this image only after `container.yml` completes successfully on GitHub.
 
 ## Python Version Requirements
 
