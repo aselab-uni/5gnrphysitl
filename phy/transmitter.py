@@ -20,12 +20,14 @@ class TxMetadata:
     allocation: FrameAllocation
     payload_bits: np.ndarray
     coded_bits: np.ndarray
+    scrambled_bits: np.ndarray
     scrambling_sequence: np.ndarray
     coding_metadata: CodingMetadata
     modulation: str
     mapper: ModulationMapper
     mapping: ChannelMapping
     dmrs: Dict[str, np.ndarray]
+    tx_grid_data: np.ndarray
     tx_grid: np.ndarray
     tx_symbols: np.ndarray
     sample_rate: float
@@ -93,6 +95,7 @@ class NrTransmitter:
         )
         tx_symbols = mapper.map_bits(scrambled_bits)
         grid.map_symbols(tx_symbols, mapping.positions)
+        tx_grid_data = grid.grid.copy()
         dmrs = grid.insert_dmrs(slot=0)
         waveform = self._ofdm_modulate(grid)
 
@@ -104,12 +107,14 @@ class NrTransmitter:
                 allocation=self.allocation,
                 payload_bits=payload,
                 coded_bits=coded_bits,
+                scrambled_bits=scrambled_bits,
                 scrambling_sequence=scrambling_sequence,
                 coding_metadata=coding_metadata,
                 modulation=modulation_name,
                 mapper=mapper,
                 mapping=mapping,
                 dmrs=dmrs,
+                tx_grid_data=tx_grid_data,
                 tx_grid=grid.grid.copy(),
                 tx_symbols=tx_symbols,
                 sample_rate=self.numerology.sample_rate,

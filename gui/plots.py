@@ -9,6 +9,8 @@ from matplotlib.figure import Figure
 from PyQt5.QtCore import QRectF, Qt
 from PyQt5.QtWidgets import QSizePolicy, QTabWidget, QVBoxLayout, QWidget
 
+from gui.phy_pipeline import PhyPipelinePanel
+
 
 pg.setConfigOptions(antialias=True, imageAxisOrder="row-major")
 
@@ -23,6 +25,7 @@ class PlotPanel(QWidget):
 
         self._waterfall_history = np.zeros((128, 512), dtype=np.float32)
 
+        self._build_pipeline_tab()
         self._build_signal_tab()
         self._build_grid_tab()
         self._build_channel_tab()
@@ -212,6 +215,10 @@ class PlotPanel(QWidget):
         layout.addWidget(self.batch_canvas)
         self.tabs.addTab(self.batch_widget, "Batch Analytics")
         self._render_batch_placeholder()
+
+    def _build_pipeline_tab(self) -> None:
+        self.pipeline_panel = PhyPipelinePanel()
+        self.tabs.addTab(self.pipeline_panel, "PHY Pipeline")
 
     def _render_batch_placeholder(self) -> None:
         for axis in self.batch_axes.ravel():
@@ -408,6 +415,7 @@ class PlotPanel(QWidget):
 
         subcarriers, relative_error = self._per_subcarrier_relative_error(result)
         self.evm_subcarrier_curve.setData(subcarriers, relative_error)
+        self.pipeline_panel.set_pipeline(result.get("pipeline", []))
 
     def update_batch_result(self, dataframe, experiment_name: str) -> None:
         for axis in self.batch_axes.ravel():

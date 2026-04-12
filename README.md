@@ -207,6 +207,11 @@ Windows PowerShell without activation:
 
 The current runtime plot workspace includes:
 
+- `PHY Pipeline` tab
+  - stage-by-stage view of the full PHY chain from transport bits to decoded bits
+  - explicit TX, channel, and RX sections
+  - per-stage previews for bitstreams, LLRs, constellations, grids, and waveforms
+  - per-stage summaries and data excerpts for teaching and debugging
 - `Signal Domain` tab
   - reference / pre-EQ / post-EQ constellation
   - TX/RX waveform overlay
@@ -884,6 +889,21 @@ The dashboard supports:
 - Numerology and modulation controls.
 - Channel and impairment controls.
 - Run, stop, reset, save/load config, and batch experiment buttons.
+- Dedicated `PHY Pipeline` tab that shows the full stage sequence:
+  - traffic / transport block
+  - CRC + channel coding
+  - scrambling
+  - modulation mapping
+  - resource-grid mapping
+  - DMRS insertion
+  - OFDM modulation
+  - impairments / fading / AWGN
+  - timing and CFO correction
+  - OFDM demodulation
+  - channel estimation
+  - equalization
+  - soft demapping / descrambling
+  - decoding + CRC
 - Real-time plot areas for constellation, waveform, spectrum, TX resource-grid allocation, impulse response, and estimated channel.
 - Batch analytics tab rendered with embedded Matplotlib.
 - Dash launcher for browser-based analytics.

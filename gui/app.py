@@ -175,6 +175,7 @@ class NrPhyResearchApp(QMainWindow):
             f"SCS: {numerology.get('scs_khz', 30)} kHz | FFT: {numerology.get('fft_size', 512)}",
             f"Channel: {channel.get('model', 'awgn')} / {channel.get('profile', 'static_near')} | "
             f"SNR: {channel.get('snr_db', 0.0)} dB | Doppler: {channel.get('doppler_hz', 0.0)} Hz",
+            "Use the PHY Pipeline tab to inspect each stage from transport bits through coding, OFDM, channel impairments, synchronization, equalization, and decoding.",
         ]
 
         if bool(receiver.get("perfect_sync", False)):

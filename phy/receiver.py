@@ -27,9 +27,13 @@ from .transmitter import TxMetadata
 class RxResult:
     recovered_bits: np.ndarray
     crc_ok: bool
+    corrected_waveform: np.ndarray
     rx_grid: np.ndarray
+    rx_symbols: np.ndarray
     equalized_symbols: np.ndarray
     channel_estimate: np.ndarray
+    llrs: np.ndarray
+    descrambled_llrs: np.ndarray
     timing_offset: int
     cfo_estimate_hz: float
     kpis: LinkKpiSummary
@@ -137,9 +141,13 @@ class NrReceiver:
         return RxResult(
             recovered_bits=recovered_bits,
             crc_ok=crc_ok,
+            corrected_waveform=corrected,
             rx_grid=rx_grid,
+            rx_symbols=rx_symbols,
             equalized_symbols=equalized,
             channel_estimate=h_full,
+            llrs=llrs,
+            descrambled_llrs=descrambled_llrs,
             timing_offset=timing_offset,
             cfo_estimate_hz=cfo_estimate_hz,
             kpis=kpis,
