@@ -55,6 +55,62 @@ Provided installer scripts:
 - macOS Python-only: [`install/macos-python-only.sh`](/D:/Data/Lectures/20252/MobiCom/Codex/5GNRPHYSITL/5gnr_phy_stl/install/macos-python-only.sh)
 - macOS GNU Radio: [`install/macos-gnuradio.sh`](/D:/Data/Lectures/20252/MobiCom/Codex/5GNRPHYSITL/5gnr_phy_stl/install/macos-gnuradio.sh)
 
+## Package Build
+
+The repository now supports standard Python packaging via `pyproject.toml`.
+
+Build wheel and sdist:
+
+```bash
+python -m pip install --upgrade pip build
+python -m build
+```
+
+Artifacts are generated in:
+
+- `dist/*.whl`
+- `dist/*.tar.gz`
+
+Install locally from source:
+
+```bash
+python -m pip install .
+```
+
+Install with development dependencies:
+
+```bash
+python -m pip install .[dev]
+```
+
+Installed console commands:
+
+- `fivegnr-phy-stl`
+- `fivegnr-phy-stl-gui`
+- `fivegnr-phy-stl-experiments`
+- `fivegnr-phy-stl-student-cases`
+- `fivegnr-phy-stl-showcases`
+
+## CI/CD
+
+GitHub Actions workflows are included under [`.github/workflows`](D:/Data/Lectures/20252/MobiCom/Codex/5GNRPHYSITL/5gnr_phy_stl/.github/workflows):
+
+- `ci.yml`
+  - runs on push to `main` and on pull requests
+  - installs the package with dev dependencies
+  - runs `pytest`
+  - runs `compileall` on the core modules
+  - runs CLI smoke checks
+  - builds wheel and sdist
+  - uploads the `dist/` artifacts from the main Linux build job
+- `release.yml`
+  - runs on tag pushes matching `v*`
+  - builds wheel and sdist
+  - uploads them as workflow artifacts
+  - attaches them to the GitHub release automatically
+
+This means each commit can be validated and packaged automatically, while tagged releases also publish build artifacts to GitHub.
+
 ## Python Version Requirements
 
 This project requires Python 3.10 or newer.

@@ -1,0 +1,8 @@
+control_channel:
+  payload_bits: 128
+  modulation: QPSK
+  coding_scheme: polar_like
+  target_rate: 0.25
+  region:
+    symbols: 2
+    subcarriers: 72

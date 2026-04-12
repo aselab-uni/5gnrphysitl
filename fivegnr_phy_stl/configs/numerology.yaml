@@ -1,0 +1,21 @@
+default:
+  scs_khz: 30
+  fft_size: 512
+  cp_length: 36
+  n_rb: 24
+  symbols_per_slot: 14
+  slots_per_frame: 10
+fr1_light:
+  scs_khz: 15
+  fft_size: 256
+  cp_length: 18
+  n_rb: 12
+  symbols_per_slot: 14
+  slots_per_frame: 10
+fr1_medium:
+  scs_khz: 30
+  fft_size: 512
+  cp_length: 36
+  n_rb: 24
+  symbols_per_slot: 14
+  slots_per_frame: 10

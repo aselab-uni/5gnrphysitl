@@ -1,0 +1,77 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fivegnr-phy-stl"
+version = "1.0.1"
+description = "Interactive 5G NR PHY STL teaching and research workbench"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+  { name = "dotrongtuan" }
+]
+license = "LicenseRef-Proprietary-Educational"
+keywords = ["5g", "nr", "phy", "gnu-radio", "ofdm", "sdr", "simulation", "teaching"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Education",
+  "Intended Audience :: Science/Research",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Education",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+  "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+  "numpy>=1.24",
+  "scipy>=1.10",
+  "matplotlib>=3.7",
+  "pandas>=2.0",
+  "PyYAML>=6.0",
+  "PyQt5>=5.15",
+  "pyqtgraph>=0.13",
+  "dash>=2.17",
+  "plotly>=5.22",
+]
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2",
+  "pytest>=8.0",
+]
+
+[project.scripts]
+fivegnr-phy-stl = "fivegnr_phy_stl.cli:main"
+fivegnr-phy-stl-gui = "fivegnr_phy_stl.cli:gui_main"
+fivegnr-phy-stl-experiments = "fivegnr_phy_stl.cli:experiments_main"
+fivegnr-phy-stl-student-cases = "fivegnr_phy_stl.cli:student_cases_main"
+fivegnr-phy-stl-showcases = "fivegnr_phy_stl.cli:showcases_main"
+
+[tool.setuptools]
+include-package-data = true
+py-modules = ["main", "run_experiments", "run_showcases", "run_student_testcases"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+  "fivegnr_phy_stl*",
+  "channel*",
+  "experiments*",
+  "grc*",
+  "gui*",
+  "phy*",
+  "utils*",
+]
+
+[tool.setuptools.package-data]
+fivegnr_phy_stl = ["configs/*.yaml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

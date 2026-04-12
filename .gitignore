@@ -16,6 +16,9 @@ venv/
 outputs/
 outputs_smoke/
 *.log
+dist/
+build/
+*.egg-info/
 
 # OS/editor noise
 .DS_Store

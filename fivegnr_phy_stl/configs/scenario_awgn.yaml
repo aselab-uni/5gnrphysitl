@@ -1,0 +1,9 @@
+link:
+  channel_type: data
+modulation:
+  scheme: QPSK
+channel:
+  model: awgn
+  snr_db: 20
+  cfo_hz: 0
+  sto_samples: 0
