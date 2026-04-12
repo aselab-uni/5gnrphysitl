@@ -1,6 +1,6 @@
 # 5G NR PHY STL Research Platform
 
-Software-in-the-loop, software-only prototype for a 5G NR-inspired PHY link simulator built with Python, GNU Radio integration hooks, NumPy/SciPy, Matplotlib, and PyQt5.
+Software-in-the-loop, software-only prototype for a 5G NR-inspired PHY link simulator built with Python, GNU Radio integration hooks, NumPy/SciPy, Matplotlib, PyQtGraph, and PyQt5.
 
 This codebase targets research, teaching, quick what-if studies, and progressive expansion toward a richer NR PHY platform. It intentionally prioritizes a clean architecture and runnable end-to-end prototype over full 3GPP compliance.
 
@@ -60,6 +60,246 @@ Practical notes:
 ## Quick Start
 
 Use one of these two paths depending on your goal.
+
+## Detailed Run Guide
+
+This section is the recommended execution path for the current codebase, especially after the GUI visualization update to `PyQtGraph`.
+
+Follow the steps in order.
+
+### 1. Check Python version first
+
+This project currently requires Python 3.10 or newer.
+
+Windows PowerShell:
+
+```powershell
+python --version
+```
+
+Ubuntu/macOS:
+
+```bash
+python3 --version
+```
+
+If the reported version is below 3.10, do not reuse an old `.venv`.
+
+### 2. Recreate `.venv` with the correct interpreter
+
+If you previously created `.venv` with an older Python version, remove it and recreate it.
+
+Windows PowerShell:
+
+```powershell
+cd C:\path\to\5gnr_phy_stl
+Remove-Item -Recurse -Force .venv
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+If activation is blocked, install packages with the local interpreter directly:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip install --upgrade pip
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
+
+Ubuntu 22.04 / Ubuntu 24.04:
+
+```bash
+cd /path/to/5gnr_phy_stl
+rm -rf .venv
+python3.10 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+If `python3` already points to 3.10+:
+
+```bash
+cd /path/to/5gnr_phy_stl
+rm -rf .venv
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+macOS:
+
+```bash
+cd /path/to/5gnr_phy_stl
+rm -rf .venv
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### 3. Verify GUI dependencies
+
+The current GUI uses both `PyQt5` and `pyqtgraph`.
+
+Windows PowerShell:
+
+```powershell
+python -c "import PyQt5, pyqtgraph; print('GUI deps OK')"
+```
+
+Ubuntu/macOS:
+
+```bash
+python -c "import PyQt5, pyqtgraph; print('GUI deps OK')"
+```
+
+If you are not activating `.venv`, use the local interpreter path instead.
+
+### 4. Run a CLI sanity check before opening the GUI
+
+Run a single-link simulation first:
+
+```bash
+python main.py --config configs/default.yaml
+```
+
+Expected behavior:
+
+- the simulation completes without import errors
+- KPI output is printed as JSON
+- there is no startup error related to `dataclass(slots=True)`
+
+### 5. Launch the GUI
+
+After the CLI check succeeds, launch the dashboard:
+
+```bash
+python main.py --config configs/default.yaml --gui
+```
+
+Windows PowerShell without activation:
+
+```powershell
+.\.venv\Scripts\python.exe main.py --config configs/default.yaml --gui
+```
+
+### 6. What the current GUI shows
+
+The current runtime plot workspace includes:
+
+- `Constellation: pre/post/reference`
+- `RX waveform (time domain)`
+- `RX spectrum`
+- `TX resource-grid allocation`
+- `Estimated channel magnitude`
+- `Channel impulse response`
+
+Configuration controls remain on the left, and KPI/log panels remain on the right.
+
+### 7. Run common scenarios
+
+Default GUI:
+
+```bash
+python main.py --config configs/default.yaml --gui
+```
+
+Vehicular scenario:
+
+```bash
+python main.py --config configs/default.yaml --override configs/scenario_vehicular.yaml --gui
+```
+
+Python-only CLI:
+
+```bash
+python main.py --config configs/default.yaml
+```
+
+Batch BER sweep:
+
+```bash
+python run_experiments.py --experiment ber_vs_snr --config configs/default.yaml --output-dir outputs
+```
+
+Student testcase bundle:
+
+```bash
+python run_student_testcases.py --config configs/default.yaml --output-dir outputs/student_testcases
+```
+
+Run individual student testcases:
+
+```bash
+python run_student_testcases.py --config configs/default.yaml --case-id TC2 --output-dir outputs/student_testcases_tc2
+python run_student_testcases.py --config configs/default.yaml --case-id TC3 --output-dir outputs/student_testcases_tc3
+python run_student_testcases.py --config configs/default.yaml --case-id TC5 --output-dir outputs/student_testcases_tc5
+```
+
+Showcase bundle:
+
+```bash
+python run_showcases.py --config configs/default.yaml --output-dir outputs/showcases
+```
+
+Windows PowerShell launcher examples:
+
+```powershell
+.\run_python_only.bat
+.\run_gui.bat
+.\run_student_testcases.bat
+.\run_showcases.bat
+```
+
+### 8. Common failure modes
+
+`TypeError: dataclass() got an unexpected keyword argument 'slots'`
+
+- You are using Python 3.9 or older.
+- Or `.venv` was created with an older interpreter and is still being reused.
+- Fix: delete `.venv`, recreate it with Python 3.10+, then reinstall dependencies.
+
+`ModuleNotFoundError: No module named 'pyqtgraph'`
+
+- The updated GUI dependency is not installed.
+- Fix:
+
+```bash
+pip install -r requirements.txt
+```
+
+`ModuleNotFoundError: No module named 'PyQt5'`
+
+- GUI dependencies are missing from the active environment.
+- Fix:
+
+```bash
+pip install -r requirements.txt
+```
+
+`run_*.bat` is not recognized in PowerShell
+
+- PowerShell does not execute scripts from the current directory unless prefixed.
+- Fix:
+
+```powershell
+.\run_showcases.bat
+.\run_student_testcases.bat
+.\run_gui.bat
+```
+
+### 9. Suggested operating sequence
+
+For a clean run, use this order:
+
+1. Check Python version.
+2. Recreate `.venv` if needed.
+3. Install requirements.
+4. Run `python main.py --config configs/default.yaml`.
+5. Launch `python main.py --config configs/default.yaml --gui`.
 
 ### Quick Start A: Python-only mode
 
@@ -351,6 +591,7 @@ Notes:
 - For a classroom-oriented walkthrough, see `docs/STUDENT_TESTCASES.md`.
 - For deeper 3GPP-inspired teaching demos, see `docs/SHOWCASES_3GPP_PHY.md`.
 - For GUI parameter meanings, ranges, units, and symbols, see `docs/SIMULATION_PARAMETER_REFERENCE.md`.
+- For the proposed GUI architecture and PHY screen inventory, see `docs/GUI_ARCHITECTURE.md`.
 - `docs/SHOWCASES_3GPP_PHY.md` also includes a checklist to distinguish a teaching model from a conformance-grade NR PHY.
 
 ## 1. Problem Analysis
@@ -485,7 +726,7 @@ The dashboard supports:
 - Numerology and modulation controls.
 - Channel and impairment controls.
 - Run, stop, reset, save/load config, and batch experiment buttons.
-- Real-time plot areas for constellation, waveform, spectrum, impulse response, estimated channel, and KPI snapshot.
+- Real-time plot areas for constellation, waveform, spectrum, TX resource-grid allocation, impulse response, and estimated channel.
 - KPI table and log pane.
 
 ## 9. Batch Experiments
