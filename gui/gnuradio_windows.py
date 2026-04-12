@@ -13,8 +13,10 @@ try:  # pragma: no cover - depends on GNU Radio runtime
     from gnuradio.fft import window
 
     HAVE_GNURADIO = True
-except ImportError:  # pragma: no cover - graceful fallback
+    GNURADIO_IMPORT_ERROR: str | None = None
+except Exception as exc:  # pragma: no cover - graceful fallback
     HAVE_GNURADIO = False
+    GNURADIO_IMPORT_ERROR = f"{type(exc).__name__}: {exc}"
 
 
 def _wrap_qwidget(qtgui_sink: object) -> QWidget:

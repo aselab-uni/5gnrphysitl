@@ -21,7 +21,7 @@ from experiments.impairment_sweep import run_experiment as run_impairment_sweep
 from gui.config_editor import load_config_dialog, save_config_dialog
 from gui.controls import ControlPanel
 from gui.dashboard import DashboardPanel
-from gui.gnuradio_windows import HAVE_GNURADIO, RxSinkWindow, TxSinkWindow
+from gui.gnuradio_windows import GNURADIO_IMPORT_ERROR, HAVE_GNURADIO, RxSinkWindow, TxSinkWindow
 from gui.plots import PlotPanel
 from utils.io import save_dataframe_csv
 from utils.validators import deep_merge
@@ -97,12 +97,19 @@ class NrPhyResearchApp(QMainWindow):
     def _build_ui(self) -> None:
         central = QWidget()
         layout = QHBoxLayout(central)
-        splitter = QSplitter()
-        splitter.addWidget(self.controls)
-        splitter.addWidget(self.plots)
-        splitter.addWidget(self.dashboard)
-        splitter.setSizes([320, 800, 400])
-        layout.addWidget(splitter)
+        layout.setContentsMargins(4, 4, 4, 4)
+        layout.setSpacing(4)
+        self.splitter = QSplitter()
+        self.splitter.setChildrenCollapsible(False)
+        self.splitter.setHandleWidth(8)
+        self.splitter.addWidget(self.controls)
+        self.splitter.addWidget(self.plots)
+        self.splitter.addWidget(self.dashboard)
+        self.splitter.setStretchFactor(0, 0)
+        self.splitter.setStretchFactor(1, 1)
+        self.splitter.setStretchFactor(2, 0)
+        self.splitter.setSizes([290, 1080, 270])
+        layout.addWidget(self.splitter)
         self.setCentralWidget(central)
 
     def _connect_signals(self) -> None:
@@ -120,14 +127,39 @@ class NrPhyResearchApp(QMainWindow):
         if not HAVE_GNURADIO:
             self.controls.buttons["tx_sink"].setEnabled(False)
             self.controls.buttons["rx_sink"].setEnabled(False)
-            self.controls.buttons["tx_sink"].setToolTip("Install GNU Radio 3.10+ in the active environment to enable TX QT sinks.")
-            self.controls.buttons["rx_sink"].setToolTip("Install GNU Radio 3.10+ in the active environment to enable RX QT sinks.")
+            reason = GNURADIO_IMPORT_ERROR or "GNU Radio is unavailable in the active interpreter."
+            self.controls.buttons["tx_sink"].setToolTip(f"Disabled: {reason}")
+            self.controls.buttons["rx_sink"].setToolTip(f"Disabled: {reason}")
         self.controls.buttons["dash"].setToolTip("Launch a browser-based dashboard for the latest batch CSV.")
 
     def _build_runtime_config(self) -> dict:
         self.current_config = deep_merge(self.base_config, self.controls.build_patch())
         self._update_notes()
         return deepcopy(self.current_config)
+
+    @staticmethod
+    def _dash_available() -> bool:
+        return importlib.util.find_spec("dash") is not None and importlib.util.find_spec("plotly") is not None
+
+    def _update_status_panel(self, result: dict | None = None) -> None:
+        status = {
+            "Python executable": sys.executable,
+            "GNU Radio bindings": "Available" if HAVE_GNURADIO else "Unavailable",
+            "TX sink button": "Enabled" if self.controls.buttons["tx_sink"].isEnabled() else "Disabled",
+            "RX sink button": "Enabled" if self.controls.buttons["rx_sink"].isEnabled() else "Disabled",
+            "Dash / Plotly": "Available" if self._dash_available() else "Unavailable",
+            "GNU Radio loopback requested": "Yes" if bool(self.current_config.get("simulation", {}).get("use_gnuradio", False)) else "No",
+        }
+        if not HAVE_GNURADIO:
+            status["GNU Radio reason"] = GNURADIO_IMPORT_ERROR or "GNU Radio import failed."
+            status["How to enable sinks"] = "Run the GUI from a Conda env with Python 3.10 + GNU Radio 3.10+ installed."
+        if result is not None:
+            channel_state = result.get("channel_state", {})
+            if channel_state.get("gnu_radio_requested"):
+                status["GNU Radio loopback used"] = "Yes" if channel_state.get("gnu_radio_used") else "No"
+                if channel_state.get("gnu_radio_error"):
+                    status["Loopback fallback reason"] = channel_state["gnu_radio_error"]
+        self.dashboard.update_status(status)
 
     def _update_notes(self, result: dict | None = None) -> None:
         config = self.current_config
@@ -167,6 +199,7 @@ class NrPhyResearchApp(QMainWindow):
 
         notes.append("Signal-domain sync summary mixes samples, Hz, and linear EVM for quick diagnostics.")
         self.dashboard.set_notes(notes)
+        self._update_status_panel(result)
 
     def _start_worker(self, config: dict, batch: bool, experiment_name: str = "ber_vs_snr") -> None:
         if self.thread is not None:
@@ -284,7 +317,7 @@ class NrPhyResearchApp(QMainWindow):
         self.dashboard.append_log("Opened GNU Radio RX sink window.")
 
     def open_dash_dashboard(self) -> None:
-        if importlib.util.find_spec("dash") is None or importlib.util.find_spec("plotly") is None:
+        if not self._dash_available():
             self.handle_error("Dash and Plotly are not installed in the active Python environment.")
             return
         csv_path = self._latest_csv_for_dash()

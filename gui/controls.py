@@ -8,9 +8,10 @@ from PyQt5.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
+    QGridLayout,
     QGroupBox,
-    QHBoxLayout,
     QPushButton,
+    QSizePolicy,
     QSpinBox,
     QVBoxLayout,
     QWidget,
@@ -22,6 +23,9 @@ class ControlPanel(QWidget):
         super().__init__(parent)
         self.widgets: Dict[str, object] = {}
         self.buttons: Dict[str, QPushButton] = {}
+        self.setMinimumWidth(270)
+        self.setMaximumWidth(340)
+        self.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         self._build_ui()
 
     def _combo(self, values: list[str]) -> QComboBox:
@@ -46,9 +50,16 @@ class ControlPanel(QWidget):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
 
         mode_box = QGroupBox("Configuration")
         form = QFormLayout(mode_box)
+        form.setLabelAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        form.setFormAlignment(Qt.AlignTop)
+        form.setFieldGrowthPolicy(QFormLayout.AllNonFixedFieldsGrow)
+        form.setHorizontalSpacing(8)
+        form.setVerticalSpacing(6)
 
         self.widgets["mode"] = self._combo(["data", "control", "compare"])
         self.widgets["modulation"] = self._combo(["QPSK", "16QAM", "64QAM", "256QAM"])
@@ -106,29 +117,40 @@ class ControlPanel(QWidget):
 
         layout.addWidget(mode_box)
 
-        primary_button_layout = QHBoxLayout()
+        primary_button_layout = QGridLayout()
+        primary_button_layout.setHorizontalSpacing(6)
+        primary_button_layout.setVerticalSpacing(6)
         for key, label in [
             ("run", "Run"),
             ("stop", "Stop"),
             ("reset", "Reset"),
-            ("save", "Save config"),
-            ("load", "Load config"),
-            ("batch", "Batch experiment"),
+            ("save", "Save"),
+            ("load", "Load"),
+            ("batch", "Batch"),
         ]:
             button = QPushButton(label)
+            button.setMinimumHeight(32)
             self.buttons[key] = button
-            primary_button_layout.addWidget(button)
+            index = len(self.buttons) - 1
+            row = index // 3
+            column = index % 3
+            primary_button_layout.addWidget(button, row, column)
         layout.addLayout(primary_button_layout)
 
-        tooling_button_layout = QHBoxLayout()
+        tooling_button_layout = QGridLayout()
+        tooling_button_layout.setHorizontalSpacing(6)
+        tooling_button_layout.setVerticalSpacing(6)
+        tooling_start_index = len(self.buttons)
         for key, label in [
             ("tx_sink", "TX sink"),
             ("rx_sink", "RX sink"),
             ("dash", "Open Dash"),
         ]:
             button = QPushButton(label)
+            button.setMinimumHeight(32)
             self.buttons[key] = button
-            tooling_button_layout.addWidget(button)
+            index = len(self.buttons) - tooling_start_index - 1
+            tooling_button_layout.addWidget(button, 0, index)
         layout.addLayout(tooling_button_layout)
         layout.addStretch(1)
 

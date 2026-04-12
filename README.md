@@ -216,7 +216,51 @@ Auxiliary instrumentation from the control panel:
 - `RX sink` opens GNU Radio QT time/constellation/frequency/waterfall sinks when GNU Radio is installed
 - `Open Dash` launches a browser-based batch analytics dashboard from the latest batch CSV
 
-Configuration controls remain on the left, and KPI / warnings / logs remain on the right.
+Configuration controls remain on the left, and KPI / environment status / warnings / logs remain on the right.
+
+### 6a. How to enable `TX sink` and `RX sink` on Windows
+
+If the `TX sink` and `RX sink` buttons are greyed out, the GUI did not detect GNU Radio in the active Python interpreter.
+
+The GUI now shows this explicitly in the `Environment Status` panel:
+
+- `GNU Radio bindings`
+- `TX sink button`
+- `RX sink button`
+- `GNU Radio reason`
+- `How to enable sinks`
+
+Recommended Windows procedure:
+
+1. Install Miniconda or Anaconda.
+2. Open `Anaconda Prompt`, `Miniconda Prompt`, or `PowerShell` after `conda init powershell`.
+3. Create one environment for Python, GNU Radio, and the project dependencies:
+
+```powershell
+conda create -n 5gnr-phy python=3.10 -y
+conda activate 5gnr-phy
+conda install -c conda-forge gnuradio -y
+pip install -r requirements.txt
+```
+
+4. Verify the same interpreter can import GNU Radio:
+
+```powershell
+python -c "import sys; print(sys.executable)"
+python -c "import gnuradio; print('GNU Radio import OK')"
+```
+
+5. Launch the GUI from that same shell:
+
+```powershell
+python main.py --config configs/default.yaml --gui
+```
+
+Important notes:
+
+- You must close and reopen the GUI after installing GNU Radio.
+- The `Use GNU Radio loopback` checkbox does not enable the buttons by itself.
+- The buttons are enabled only when `import gnuradio` succeeds in the interpreter that launched the GUI.
 
 ### 7. Run common scenarios
 
@@ -559,6 +603,7 @@ Notes:
 - If GNU Radio is not available, the project falls back to the Python-only path.
 - For the most stable GNU Radio experience, prefer Ubuntu.
 - Before creating a GNU Radio Conda environment, check the interpreter version with `python --version` or `conda run -n 5gnr-phy python --version`.
+- In the GUI, `TX sink` and `RX sink` are enabled only when the `Environment Status` panel reports `GNU Radio bindings: Available`.
 
 ## Convenience Commands
 
@@ -1077,6 +1122,35 @@ conda install -c conda-forge gnuradio -y
   system Python + Conda GNU Radio
 - Prefer:
   one Conda environment containing both GNU Radio and project dependencies
+
+#### `TX sink` and `RX sink` are greyed out in the GUI
+
+Typical reason:
+
+- the GUI was launched from a Python interpreter that cannot import `gnuradio`
+
+What to do on Windows:
+
+```powershell
+python -c "import sys; print(sys.executable)"
+python -c "import gnuradio; print('GNU Radio import OK')"
+```
+
+If the second command fails, do not use the current `.venv` for GNU Radio sinks. Instead:
+
+```powershell
+conda create -n 5gnr-phy python=3.10 -y
+conda activate 5gnr-phy
+conda install -c conda-forge gnuradio -y
+pip install -r requirements.txt
+python main.py --config configs/default.yaml --gui
+```
+
+Use the GUI `Environment Status` panel to confirm:
+
+- `GNU Radio bindings: Available`
+- `TX sink button: Enabled`
+- `RX sink button: Enabled`
 
 #### PowerShell execution policy blocks virtual environment activation
 
