@@ -1,0 +1,1363 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+\PassOptionsToPackage{dvipsnames,svgnames,x11names}{xcolor}
+\documentclass[
+  vietnamese,
+  a4paper,
+  11pt]{article}
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\setcounter{secnumdepth}{5}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{longtable,booktabs,array}
+\newcounter{none} % for unnumbered tables
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\ifLuaTeX
+\usepackage[bidi=basic,shorthands=off]{babel}
+\else
+\usepackage[bidi=default,shorthands=off]{babel}
+\fi
+\ifLuaTeX
+  \usepackage{selnolig} % disable illegal ligatures
+\fi
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{graphicx}
+\usepackage{caption}
+\usepackage{fvextra}
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{5G NR PHY STL}
+\fancyhead[R]{Technical comparison}
+\fancyfoot[C]{\thepage}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={He thong 5G thuc te hien nay va doi chieu voi du an 5G NR PHY STL},
+  pdfauthor={Codex-assisted technical synthesis},
+  pdflang={vi},
+  colorlinks=true,
+  linkcolor={blue},
+  filecolor={Maroon},
+  citecolor={Blue},
+  urlcolor={blue},
+  pdfcreator={LaTeX via pandoc}}
+
+\title{He thong 5G thuc te hien nay va doi chieu voi du an 5G NR PHY
+STL}
+\author{Codex-assisted technical synthesis}
+\date{2026-04-13}
+
+\begin{document}
+\maketitle
+
+{
+\setcounter{tocdepth}{3}
+\tableofcontents
+}
+\section{He thong 5G thuc te hien nay va doi chieu voi du an 5G NR PHY
+STL}\label{he-thong-5g-thuc-te-hien-nay-va-doi-chieu-voi-du-an-5g-nr-phy-stl}
+
+\subsection{Tom tat}\label{tom-tat}
+
+Tai lieu nay tra loi cau hoi trung tam: \textbf{mot he thong 5G thuc te
+nam 2026 gom nhung gi, va du an
+\texttt{5G\ NR\ PHY\ STL\ Research\ Platform} da mo phong duoc den dau
+trong buc tranh do}.
+
+Ket luan ngan gon:
+
+\begin{itemize}
+\tightlist
+\item
+  5G thuc te la mot \textbf{he thong dau-cuoi} gom UE, RAN, transport,
+  5G Core, application domain, OSS/BSS, orchestration, bao mat, quan ly
+  QoS, mobility, slicing va van hanh mang.
+\item
+  Du an hien tai la mot \textbf{downlink-oriented PHY workbench} theo
+  huong \texttt{3GPP-inspired}, software-only, phu hop cho nghien cuu,
+  giang day, va prototyping link-level.
+\item
+  Du an da lam tot cac khoi cot loi cua PHY: OFDM, resource grid, DMRS,
+  AWGN/fading/impairments, equalization, demapping, KPI, GUI
+  stage-by-stage.
+\item
+  Du an \textbf{chua} la he thong 5G day du va chua phai PHY
+  conformance-grade: thieu phan MAC/RLC/PDCP/RRC/NAS/5GC, thieu
+  scheduler, HARQ, MIMO/beamforming, uplink hoan chinh, initial access
+  day du, va coding chua dung 3GPP bit-true.
+\item
+  Ve gia tri hoc thuat, du an nay rat manh o vai tro
+  \textbf{teaching/research platform}; ve muc do sat he thong 5G thuong
+  mai, no nen duoc xem la \textbf{mot mo hinh PHY pilot/co so} thay vi
+  mot stack NR day du.
+\end{itemize}
+
+\subsection{1. Pham vi va phuong phap doi
+chieu}\label{pham-vi-va-phuong-phap-doi-chieu}
+
+\subsubsection{1.1. Nguon noi bo du an da doc
+lai}\label{nguon-noi-bo-du-an-da-doc-lai}
+
+Tai lieu nay duoc tong hop tu chinh ma nguon va tai lieu trong repo, dac
+biet la:
+
+\begin{itemize}
+\tightlist
+\item
+  \href{../README.md}{\texttt{README.md}}
+\item
+  \href{../phy/transmitter.py}{\texttt{phy/transmitter.py}}
+\item
+  \href{../phy/receiver.py}{\texttt{phy/receiver.py}}
+\item
+  \href{../phy/coding.py}{\texttt{phy/coding.py}}
+\item
+  \href{../phy/resource_grid.py}{\texttt{phy/resource\_grid.py}}
+\item
+  \href{../phy/numerology.py}{\texttt{phy/numerology.py}}
+\item
+  \href{../channel/fading_channel.py}{\texttt{channel/fading\_channel.py}}
+\item
+  \href{../channel/impairments.py}{\texttt{channel/impairments.py}}
+\item
+  \href{../experiments/common.py}{\texttt{experiments/common.py}}
+\item
+  \href{../gui/phy_pipeline.py}{\texttt{gui/phy\_pipeline.py}}
+\item
+  \href{../gui/controls.py}{\texttt{gui/controls.py}}
+\item
+  \href{../configs/default.yaml}{\texttt{configs/default.yaml}}
+\item
+  \href{../configs/channel_profiles.yaml}{\texttt{configs/channel\_profiles.yaml}}
+\item
+  \href{../configs/mcs_tables.yaml}{\texttt{configs/mcs\_tables.yaml}}
+\end{itemize}
+
+\subsubsection{1.2. Nguon doi chieu ben
+ngoai}\label{nguon-doi-chieu-ben-ngoai}
+
+De mo ta ``he thong 5G thoi diem hien tai'', tai lieu nay su dung:
+
+\begin{itemize}
+\tightlist
+\item
+  3GPP Release 18 page va bai viet stage-3 completion cua 3GPP
+\item
+  3GPP Release 19 page
+\item
+  GSMA Mobile Economy 2025 va GSMA 5G spectrum/public policy paper
+\end{itemize}
+
+\subsubsection{1.3. Cach doc tai lieu nay}\label{cach-doc-tai-lieu-nay}
+
+Tai lieu tach ro ba lop so sanh:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{5G nhu mot he thong thuc te}
+\item
+  \textbf{NR PHY nhu mot subsystem vo tuyen}
+\item
+  \textbf{Du an nay dang mo phong duoc bao nhieu trong subsystem do}
+\end{enumerate}
+
+Noi cach khac, tai lieu khong hoi ``du an nay co phai 5G that khong'',
+ma hoi:
+
+\begin{itemize}
+\tightlist
+\item
+  no giong 5G that o dau
+\item
+  no khac 5G that o dau
+\item
+  khoang cach ky thuat con lai la gi
+\end{itemize}
+
+\subsection{2. Snapshot 5G thuc te nam
+2026}\label{snapshot-5g-thuc-te-nam-2026}
+
+\subsubsection{2.1. 5G hien nay dang o giai doan nao trong
+3GPP}\label{g-hien-nay-dang-o-giai-doan-nao-trong-3gpp}
+
+Bang sau tong hop buc tranh cap nhat tu 3GPP:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Release
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Vai tro trong 5G
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Trang thai/chu y nghien cuu
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Y nghia doi voi du an nay
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Release 15 & Nen tang 5G NR/5GC ban dau & Moc khoi dau cua 5G thuong mai
+& Du an bam vao logic NR ban dau nhieu nhat \\
+Release 16 & Tang cuong URLCC, IAB, positioning, cong nghiep & Da la mot
+phan quan trong cua 5G truong thanh hon & Du an chua cham den phan lon
+tinh nang nay \\
+Release 17 & Mo rong NTN, RedCap, multicast/broadcast, nang cap
+positioning & 5G da vuot khoi eMBB co ban & Du an chua bao phu \\
+Release 18 & 5G-Advanced phase 1 & 3GPP cong bo stage-3 completion ngay
+10/04/2024 & Du an chua o muc 5G-Advanced \\
+Release 19 & 5G-Advanced phase 2 & 3GPP page Release 19 nam 2026 mo ta
+la ``second phase of 5G-Advanced'' & Du an chua nham toi muc nay \\
+\end{longtable}
+}
+
+Nhan xet ky thuat:
+
+\begin{itemize}
+\tightlist
+\item
+  Khi noi ``5G thuc te hien nay'', ta khong con dung lai o Rel-15 nua.
+\item
+  He thong 5G thuong mai va ecosystem hien nay dang chuyen tu
+  \texttt{5G\ initial\ deployment} sang \texttt{5G-Advanced}.
+\item
+  Vi vay, mot PHY simulator chi mo phong PDSCH/PDCCH co ban se moi phan
+  anh \textbf{lop logic cot loi Rel-15/Rel-16-inspired}, chua phan anh
+  toan bo he thong 5G nam 2026.
+\end{itemize}
+
+\subsubsection{2.2. 5G thuong mai hien nay trong thuc te trien
+khai}\label{g-thuong-mai-hien-nay-trong-thuc-te-trien-khai}
+
+Tu cac tai lieu GSMA moi:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Chi bao
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Gia tri/nhan dinh tu nguon cong khai
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Y nghia
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+So ket noi 5G toan cau & GSMA neu 5G vuot
+\texttt{2\ billion\ connections} vao cuoi nam 2024 & 5G da o quy mo dai
+chung, khong con la pilot \\
+Do bao phu thi truong & GSMA ghi nhan 5G co mat o
+\texttt{more\ than\ 100\ countries}; tinh den thang 6/2024 co
+\texttt{295\ operators\ in\ 114\ markets} da launch 5G thuong mai & He
+thong thuc te can tinh den deployment heterogeneity, spectrum va ops \\
+Benchmark khu vuc & GSMA cong bo ngay 15/01/2025 rang 5G chiem
+\texttt{30\%} ket noi di dong tai chau Au vao cuoi 2024, so voi
+\texttt{24\%} trung binh toan cau & Hieu nang/ti le trien khai 5G thay
+doi manh theo thi truong \\
+Xu huong hien nay & 5G-Advanced, Open Gateway/API, FWA, RedCap, NTN,
+AI/ML support, energy efficiency & 5G hien nay la he thong co tinh he
+sinh thai, khong chi la waveform \\
+\end{longtable}
+}
+
+\begin{quote}
+{[}PLACEHOLDER-FIG-1{]} Chen hinh/ban do phan bo 5G thuong mai theo khu
+vuc, hoac mot chart rieng tu GSMA/GSA neu ban muon lam phan tong quan
+thi truong day hon.
+\end{quote}
+
+\subsection{3. He thong 5G thuc te gom nhung
+gi}\label{he-thong-5g-thuc-te-gom-nhung-gi}
+
+\subsubsection{3.1. Kien truc tong the 5G thuc
+te}\label{kien-truc-tong-the-5g-thuc-te}
+
+\begin{figure}[H]
+\centering
+\fbox{\begin{minipage}{0.92\linewidth}
+\small
+\textbf{Mermaid diagram placeholder}\\
+Ban goc Markdown/Wiki co so do Mermaid se render tren GitHub.\\
+Ban LaTeX/PDF nay giu cho cho hinh de ban co the thay bang hinh render sau.\\[0.5em]
+\textit{Dong dau tien cua so do:} flowchart LR
+\end{minipage}}
+\caption{Placeholder cho so do Mermaid. Neu can ban in an/chuyen nghiep hon, hay render Mermaid thanh SVG/PNG roi thay vao day.}
+\end{figure}
+
+He thong 5G thuc te gom:
+
+\begin{itemize}
+\tightlist
+\item
+  \textbf{UE}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    RF front-end, baseband, protocol stack, SIM/eSIM, NAS/AS
+  \end{itemize}
+\item
+  \textbf{RAN}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    gNB, co the split RU/DU/CU
+  \item
+    scheduling, HARQ, beamforming, handover support, measurements
+  \end{itemize}
+\item
+  \textbf{Transport}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    front/mid/backhaul, timing/sync, QoS transport
+  \end{itemize}
+\item
+  \textbf{5G Core}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    AMF, SMF, UPF, PCF, UDM, AUSF, NRF, NSSF\ldots{}
+  \end{itemize}
+\item
+  \textbf{Application / Edge / Service exposure}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    MEC, AF, network APIs, slicing, policy
+  \end{itemize}
+\item
+  \textbf{Operations}
+
+  \begin{itemize}
+  \tightlist
+  \item
+    OSS/BSS, analytics, SON, assurance, telemetry, charging
+  \end{itemize}
+\end{itemize}
+
+\subsubsection{3.2. Kien truc giao thuc trong 5G thuc
+te}\label{kien-truc-giao-thuc-trong-5g-thuc-te}
+
+\begin{figure}[H]
+\centering
+\fbox{\begin{minipage}{0.92\linewidth}
+\small
+\textbf{Mermaid diagram placeholder}\\
+Ban goc Markdown/Wiki co so do Mermaid se render tren GitHub.\\
+Ban LaTeX/PDF nay giu cho cho hinh de ban co the thay bang hinh render sau.\\[0.5em]
+\textit{Dong dau tien cua so do:} flowchart TD
+\end{minipage}}
+\caption{Placeholder cho so do Mermaid. Neu can ban in an/chuyen nghiep hon, hay render Mermaid thanh SVG/PNG roi thay vao day.}
+\end{figure}
+
+So voi stack tren, du an hien tai tap trung gan nhu hoan toan vao:
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{PHY}
+\item
+  mot it logic \texttt{scheduling-like} rat don gian de bo tri
+  control/data region
+\item
+  khong bao phu SDAP/PDCP/RLC/MAC theo nghia 3GPP that
+\end{itemize}
+
+\subsubsection{3.3. Luu trinh PHY downlink trong 5G thuc
+te}\label{luu-trinh-phy-downlink-trong-5g-thuc-te}
+
+\begin{figure}[H]
+\centering
+\fbox{\begin{minipage}{0.92\linewidth}
+\small
+\textbf{Mermaid diagram placeholder}\\
+Ban goc Markdown/Wiki co so do Mermaid se render tren GitHub.\\
+Ban LaTeX/PDF nay giu cho cho hinh de ban co the thay bang hinh render sau.\\[0.5em]
+\textit{Dong dau tien cua so do:} flowchart LR
+\end{minipage}}
+\caption{Placeholder cho so do Mermaid. Neu can ban in an/chuyen nghiep hon, hay render Mermaid thanh SVG/PNG roi thay vao day.}
+\end{figure}
+
+Luu y ky thuat:
+
+\begin{itemize}
+\tightlist
+\item
+  5G thuc te co \textbf{layer mapping}, \textbf{precoding},
+  \textbf{beamforming}, \textbf{HARQ}, \textbf{multi-antenna reference
+  signals}, \textbf{scheduler-driven resource allocation}, va
+  \textbf{MAC-to-PHY interaction}.
+\item
+  Do do, mo phong PHY dung nghia trong he thong thuong mai phai co rang
+  buoc tu MAC/RRC/beam management, khong chi waveform.
+\end{itemize}
+
+\subsection{4. Du an 5G NR PHY STL dang la
+gi}\label{du-an-5g-nr-phy-stl-dang-la-gi}
+
+\subsubsection{4.1. Kien truc he thong trong ma
+nguon}\label{kien-truc-he-thong-trong-ma-nguon}
+
+\begin{figure}[H]
+\centering
+\fbox{\begin{minipage}{0.92\linewidth}
+\small
+\textbf{Mermaid diagram placeholder}\\
+Ban goc Markdown/Wiki co so do Mermaid se render tren GitHub.\\
+Ban LaTeX/PDF nay giu cho cho hinh de ban co the thay bang hinh render sau.\\[0.5em]
+\textit{Dong dau tien cua so do:} flowchart TD
+\end{minipage}}
+\caption{Placeholder cho so do Mermaid. Neu can ban in an/chuyen nghiep hon, hay render Mermaid thanh SVG/PNG roi thay vao day.}
+\end{figure}
+
+\subsubsection{4.2. Luu trinh xu ly trong du
+an}\label{luu-trinh-xu-ly-trong-du-an}
+
+\begin{figure}[H]
+\centering
+\fbox{\begin{minipage}{0.92\linewidth}
+\small
+\textbf{Mermaid diagram placeholder}\\
+Ban goc Markdown/Wiki co so do Mermaid se render tren GitHub.\\
+Ban LaTeX/PDF nay giu cho cho hinh de ban co the thay bang hinh render sau.\\[0.5em]
+\textit{Dong dau tien cua so do:} flowchart LR
+\end{minipage}}
+\caption{Placeholder cho so do Mermaid. Neu can ban in an/chuyen nghiep hon, hay render Mermaid thanh SVG/PNG roi thay vao day.}
+\end{figure}
+
+\subsubsection{4.3. Nhung gi du an da hien thuc ro rang trong
+ma}\label{nhung-gi-du-an-da-hien-thuc-ro-rang-trong-ma}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Nhom chuc nang
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Trang thai
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Bang chung trong ma
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Downlink PHY single-link & Co &
+\href{../phy/transmitter.py}{\texttt{phy/transmitter.py}},
+\href{../phy/receiver.py}{\texttt{phy/receiver.py}} \\
+Data path PDSCH-style & Co &
+\href{../phy/resource_grid.py}{\texttt{phy/resource\_grid.py}} \\
+Control path PDCCH-style simplified & Co, don gian hoa &
+\href{../phy/resource_grid.py}{\texttt{phy/resource\_grid.py}},
+\href{../phy/coding.py}{\texttt{phy/coding.py}} \\
+DMRS insertion + LS estimation & Co &
+\href{../phy/dmrs.py}{\texttt{phy/dmrs.py}},
+\href{../phy/channel_estimation.py}{\texttt{phy/channel\_estimation.py}} \\
+OFDM TX/RX & Co &
+\href{../phy/transmitter.py}{\texttt{phy/transmitter.py}},
+\href{../phy/receiver.py}{\texttt{phy/receiver.py}} \\
+AWGN / fading / Doppler / path loss / CFO / STO / phase noise / IQ
+imbalance & Co & \href{../channel}{\texttt{channel/*}} \\
+GUI phan tich stage-by-stage & Co va la diem manh &
+\href{../gui/phy_pipeline.py}{\texttt{gui/phy\_pipeline.py}} \\
+Batch experiments & Co &
+\href{../experiments}{\texttt{experiments/*}} \\
+GNU Radio integration & Co, optional & \href{../grc}{\texttt{grc/*}} \\
+Packaging + CI/CD & Co &
+\href{../pyproject.toml}{\texttt{pyproject.toml}},
+\href{../.github/workflows}{\texttt{.github/workflows}} \\
+\end{longtable}
+}
+
+\subsubsection{4.4. Cau hinh mac dinh hien tai va cac so lieu suy
+ra}\label{cau-hinh-mac-dinh-hien-tai-va-cac-so-lieu-suy-ra}
+
+Bang sau duoc suy ra tu
+\href{../configs/default.yaml}{\texttt{configs/default.yaml}} va cong
+thuc trong \href{../phy/numerology.py}{\texttt{phy/numerology.py}}:
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3000}}
+  >{\raggedleft\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.4000}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3000}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Tham so
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedleft
+Gia tri trong du an
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Dien giai
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Center frequency & \texttt{3.5\ GHz} & Ban trung tam FR1 thuong gap \\
+Configured bandwidth & \texttt{10\ MHz} & Carrier bandwidth logic o muc
+config \\
+SCS & \texttt{30\ kHz} & Tuong ung \texttt{mu\ =\ 1} \\
+FFT size & \texttt{512} & OFDM numerology cua simulator \\
+CP length & \texttt{36\ samples} & Co dinh theo config \\
+RB & \texttt{24} & \texttt{24\ x\ 12\ =\ 288} active subcarriers \\
+Active occupied BW & \texttt{8.64\ MHz} & \texttt{288\ x\ 30\ kHz} \\
+Sample rate & \texttt{15.36\ Msps} & \texttt{512\ x\ 30\ kHz} \\
+OFDM symbols/slot & \texttt{14} & Giong logic NR \\
+Slot duration (suy ra) & \texttt{\textasciitilde{}0.4995\ ms} & Gan voi
+slot 30 kHz cua NR that \\
+Slots/frame & \texttt{10} & \textbf{Khac NR that} voi \texttt{mu=1}, vi
+NR that co \texttt{20\ slots/frame} \\
+Default TB size & \texttt{1024\ bits} & Payload du lieu demo \\
+\end{longtable}
+}
+
+Nhan xet quan trong:
+
+\begin{itemize}
+\tightlist
+\item
+  O muc \textbf{slot duration}, simulator kha gan logic NR.
+\item
+  O muc \textbf{frame timing}, simulator hien \textbf{don gian hoa}. Voi
+  \texttt{30\ kHz\ SCS}, he thong NR that su dung
+  \texttt{20\ slots/frame} trong \texttt{10\ ms\ frame}, con simulator
+  mac dinh van giu \texttt{10\ slots/frame}.
+\end{itemize}
+
+\subsection{5. So sanh chuyen sau: he thong 5G that vs du an
+nay}\label{so-sanh-chuyen-sau-he-thong-5g-that-vs-du-an-nay}
+
+\subsubsection{5.1. Pham vi he thong}\label{pham-vi-he-thong}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Chieu so sanh
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+5G thuc te
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Du an hien tai
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Danh gia
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Pham vi & End-to-end system & Link-level PHY workbench & Khac ban
+chat \\
+Lop giao thuc & PHY + MAC + RLC + PDCP + SDAP + RRC + NAS + 5GC & Chu
+yeu PHY & Dung muc tiep can teaching PHY \\
+Core network & Co 5GC day du & Khong co & Ngoai pham vi \\
+Mobility va session management & Co & Khong & Ngoai pham vi \\
+QoS, slicing, policy, charging & Co & Khong & Ngoai pham vi \\
+\end{longtable}
+}
+
+Ket luan: du an \textbf{khong phai mo hinh he thong 5G day du}, ma la
+\textbf{NR PHY teaching/research simulator}.
+
+\subsubsection{5.2. Kenh va tin hieu vo
+tuyen}\label{kenh-va-tin-hieu-vo-tuyen}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Kenh/tin hieu
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+5G thuc te
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Du an hien tai
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Muc do bao phu
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+PDSCH & Day du trong NR & Co, baseline & Tot o muc teaching \\
+PDCCH & CORESET/SearchSpace/DCI phuc tap & Co,
+\texttt{PDCCH-style\ simplified} & Mot phan \\
+PBCH / SSB & Quan trong cho initial access & Chua day du & Thieu lon \\
+DMRS & Co nhieu pattern, mapping, ports & Co, comb-2 don gian & Mot
+phan \\
+PT-RS & Quan trong o phase-noise / FR2 & Khong & Thieu \\
+CSI-RS & Quan trong cho CSI/beam management & Khong & Thieu \\
+PUSCH & Kenh uplink chinh & Khong & Thieu \\
+PUCCH & Control uplink & Khong & Thieu \\
+PRACH & Initial access uplink & Khong & Thieu \\
+SRS & Uplink sounding & Khong & Thieu \\
+\end{longtable}
+}
+
+Nhan xet:
+
+\begin{itemize}
+\tightlist
+\item
+  Du an da chon dung \textbf{bo ``xuong song'' can thiet} de day PHY
+  downlink: \texttt{PDSCH\ +\ PDCCH-style\ +\ DMRS\ +\ OFDM}.
+\item
+  Nhung de goi la mo hinh NR day du, phan uplink, initial access va
+  reference signal ecosystem con thieu rat nhieu.
+\end{itemize}
+
+\subsubsection{5.3. Numerology va frame
+structure}\label{numerology-va-frame-structure}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Tinh nang
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+5G thuc te
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Du an hien tai
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Nhan xet
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+SCS ho tro & \texttt{15/30/60/120/240\ kHz} tuy FR va use case &
+\texttt{15/30/60\ kHz} & Bao phu mot phan FR1 \\
+So symbol/slot & 14 (normal CP) & 14 & Dung logic co ban \\
+Slots/frame & \texttt{10\ x\ 2\^{}mu} & default \texttt{10} & Don gian
+hoa, dac biet sai voi \texttt{mu=1,2} \\
+CP & Phu thuoc numerology va symbol & Config co dinh & Don gian hoa \\
+BWP & Co trong NR & Khong & Thieu \\
+Slot format / TDD pattern & Co & Khong & Thieu \\
+\end{longtable}
+}
+
+\subsubsection{5.4. Coding, rate matching,
+MCS}\label{coding-rate-matching-mcs}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Hang muc
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+5G thuc te
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Du an hien tai
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Nhan xet
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Data coding & 3GPP QC-LDPC + segmentation + CRC + lifting &
+\texttt{LDPC-inspired} repetition/interleaving/circular rate match &
+Dung luong xu ly, khong dung chi tiet 3GPP \\
+Control coding & Polar + CRC + rate matching + interleaving &
+\texttt{polar-like} SC decode, CRC8 & Dung tinh than, chua sat chuan \\
+CRC & CRC24/16/11/6 tuy procedure & \texttt{crc16}, \texttt{crc8} &
+Simplified \\
+Redundancy version & Co trong NR/HARQ & Co metadata \texttt{rv}, nhung
+chua co HARQ thuc su & Scaffold \\
+MCS & Bang chuan 3GPP & Anchor table ngn & Teaching-level \\
+\end{longtable}
+}
+
+Day la mot trong cac khoang cach lon nhat giua du an va NR
+conformance-grade.
+
+\subsubsection{5.5. Synchronization va initial
+access}\label{synchronization-va-initial-access}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Hang muc
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+5G thuc te
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Du an hien tai
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Nhan xet
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+PSS/SSS/PBCH cell search & Co & Chua day du & Thieu lon \\
+Timing sync & Co nhieu buoc, ket hop initial access va tracking & Co
+CP-based timing estimate & Tot cho hoc OFDM, chua du cho NR initial
+access \\
+CFO estimation & Co & Co CP-based estimate & Tot cho teaching \\
+Perfect sync option & Khong phai he thong that & Co & Huu ich cho giang
+day \\
+\end{longtable}
+}
+
+\subsubsection{5.6. Channel estimation va
+equalization}\label{channel-estimation-va-equalization}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Hang muc
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+5G thuc te
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Du an hien tai
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Nhan xet
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+DMRS-based CE & Co & Co & Mot phan dung logic \\
+PT-RS aided tracking & Co o mot so use case & Khong & Thieu \\
+Equalizer & MMSE/ZF va nhieu heuristic/tracking khac &
+\texttt{mmse}/\texttt{zf} & Vua du cho nghien cuu co ban \\
+Perfect channel estimation option & Khong phai he thong that & Co & Rat
+huu ich cho path-by-path analysis \\
+\end{longtable}
+}
+
+\subsubsection{5.7. MIMO, beamforming, CSI}\label{mimo-beamforming-csi}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Hang muc
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+5G thuc te
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Du an hien tai
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Nhan xet
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Multi-layer MIMO & Co & Chua, single-layer & Thieu lon \\
+Precoding / beamforming & Co & Khong & Thieu rat lon \\
+CSI feedback / CSI-RS & Co & Khong & Thieu \\
+Massive MIMO / hybrid beamforming & Pho bien trong 5G thuc te & Khong &
+Ngoai pham vi hien tai \\
+\end{longtable}
+}
+
+Neu nhin tu goc do deployment 5G thuong mai, day la khoang cach quan
+trong nhat sau MAC/HARQ.
+
+\subsubsection{5.8. Scheduler, HARQ va MAC
+coupling}\label{scheduler-harq-va-mac-coupling}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Hang muc
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+5G thuc te
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Du an hien tai
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Nhan xet
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Scheduler & Dong, phuc tap, phu thuoc CQI/PMI/RI/BSR/QoS & Khong co
+scheduler day du & Thieu rat lon \\
+HARQ & Core co che reliability va latency & Khong & Thieu rat lon \\
+DCI / CORESET / SearchSpace & Co & Control region don gian hoa & Chi co
+scaffold \\
+Grant-based uplink/downlink interaction & Co & Khong & Thieu \\
+\end{longtable}
+}
+
+Day la ly do vi sao du an nay nen duoc goi la \textbf{PHY simulator},
+khong nen goi la \textbf{NR stack}.
+
+\subsubsection{5.9. Mo hinh kenh va RF
+impairment}\label{mo-hinh-kenh-va-rf-impairment}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Hang muc
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+5G thuc te
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Du an hien tai
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Danh gia
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+AWGN & Co y nghia phan tich co ban & Co & Tot \\
+Flat/selective fading & Co & Co & Tot \\
+Rayleigh/Rician & Co & Co & Tot \\
+Tapped delay line & Co & Co & Tot cho teaching \\
+Path loss + shadowing & Co & Co & Tot \\
+Doppler & Co & Co & Tot \\
+CFO / STO & Co & Co & Tot \\
+Phase noise & Co & Co, mo hinh random-walk don gian & Mot phan \\
+IQ imbalance & Co & Co, simplified & Mot phan \\
+PA nonlinearity / ADC/DAC impairments / quantization / clipping & Co &
+Khong & Thieu \\
+\end{longtable}
+}
+
+Phan kenh/impairment la \textbf{mot diem manh ro rang} cua du an trong
+vai tro teaching/research platform.
+
+\subsubsection{5.10. GUI, observability va gia tri hoc
+tap}\label{gui-observability-va-gia-tri-hoc-tap}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 6\tabcolsep) * \real{0.2500}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Tieu chi
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+5G thuc te
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Du an hien tai
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Danh gia
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Stage-by-stage introspection & Thuong chi co trong tool noi bo/vendor &
+Co & Rat manh cho giang day \\
+PHY artifact inspection & Han che trong he thong thuong mai that & Co &
+Rat manh \\
+GUI pipeline click-to-inspect & Khong phai chuc nang cua he thong thuong
+mai & Co & Gia tri teaching cao \\
+Batch KPI sweeps & Can tool lab/chuyen dung & Co & Tot \\
+GNU Radio sink integration & Khong phai mot phan cua 3GPP, nhung huu ich
+cho SDR/lab & Co & Tot cho nghien cuu \\
+\end{longtable}
+}
+
+Day la diem can nhan manh: \textbf{du an co the ``thieu'' so voi 5G that
+o tinh nang deployment, nhung ``hon'' 5G that o kha nang day hoc va
+introspection}.
+
+\subsection{6. Danh gia tong hop theo cap do
+fidelity}\label{danh-gia-tong-hop-theo-cap-do-fidelity}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}
+  >{\raggedright\arraybackslash}p{(\linewidth - 4\tabcolsep) * \real{0.3333}}@{}}
+\toprule\noalign{}
+\begin{minipage}[b]{\linewidth}\raggedright
+Cap do
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Mo ta
+\end{minipage} & \begin{minipage}[b]{\linewidth}\raggedright
+Du an hien tai dang o dau
+\end{minipage} \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+Cap 0 & Demo waveform / OFDM toy model & Vuot xa cap nay \\
+Cap 1 & Link-level PHY inspired by NR & \textbf{Dang nam chac o day} \\
+Cap 2 & Standard-faithful PHY simulator & Chua dat \\
+Cap 3 & PHY + MAC closed-loop simulator & Chua dat \\
+Cap 4 & RAN stack / protocol stack simulation & Chua dat \\
+Cap 5 & End-to-end 5GS with core and services & Khong nam trong pham
+vi \\
+\end{longtable}
+}
+
+Ket luan: du an hien tai nen duoc dinh vi la \textbf{Cap 1+, huong toi
+Cap 2}.
+
+\subsection{7. Du an da lam duoc gi rat
+tot}\label{du-an-da-lam-duoc-gi-rat-tot}
+
+\subsubsection{7.1. Dung huong goc nhin cho giang day
+PHY}\label{dung-huong-goc-nhin-cho-giang-day-phy}
+
+Du an khong co gang ``gia vo'' la mot 5G stack day du. Thay vao do, no
+lam ro:
+
+\begin{itemize}
+\tightlist
+\item
+  chuoi xu ly PHY
+\item
+  tac dong cua impairment
+\item
+  tradeoff modulation/coding
+\item
+  vai tro cua DMRS, estimation, equalization
+\item
+  su khac nhau giua control va data channel
+\end{itemize}
+
+\subsubsection{7.2. Quan sat duoc artifact o moi
+stage}\label{quan-sat-duoc-artifact-o-moi-stage}
+
+Tab \texttt{PHY\ Pipeline} trong GUI la mot diem rat co gia tri ma rat
+nhieu stack that khong de mo:
+
+\begin{itemize}
+\tightlist
+\item
+  bitstream sau moi buoc
+\item
+  constellation truoc/sau channel
+\item
+  grid allocation + DMRS
+\item
+  waveform/spectrum
+\item
+  channel estimate / equalization
+\item
+  LLR / decoder / CRC
+\end{itemize}
+
+\subsubsection{7.3. To chuc codebase rat hop ly cho research
+platform}\label{to-chuc-codebase-rat-hop-ly-cho-research-platform}
+
+Code tach ro:
+
+\begin{itemize}
+\tightlist
+\item
+  \texttt{phy/}
+\item
+  \texttt{channel/}
+\item
+  \texttt{experiments/}
+\item
+  \texttt{gui/}
+\item
+  \texttt{grc/}
+\item
+  \texttt{configs/}
+\end{itemize}
+
+Day la cau truc dung neu muc tieu la mo rong dan tu teaching prototype
+thanh lab/research platform.
+
+\subsection{8. Du an chua lam duoc gi so voi 5G
+that}\label{du-an-chua-lam-duoc-gi-so-voi-5g-that}
+
+Danh sach duoi day la cac khoang cach quan trong nhat:
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  \textbf{Khong co uplink thuc su}
+\item
+  \textbf{Khong co HARQ}
+\item
+  \textbf{Khong co MIMO/beamforming}
+\item
+  \textbf{Khong co initial access day du SSB/PBCH/PRACH}
+\item
+  \textbf{Khong co scheduler, DCI, CORESET, search space dung nghia}
+\item
+  \textbf{Khong co protocol stack MAC/RLC/PDCP/RRC/NAS}
+\item
+  \textbf{Khong co 5GC}
+\item
+  \textbf{Khong co measurement/mobility/handover}
+\item
+  \textbf{Coding chua dung 3GPP bit-true}
+\item
+  \textbf{Frame timing chua bam du numerology cua chuan}
+\end{enumerate}
+
+\subsection{9. Lo trinh ky thuat de dua du an tien gan he thong 5G
+that}\label{lo-trinh-ky-thuat-de-dua-du-an-tien-gan-he-thong-5g-that}
+
+\begin{figure}[H]
+\centering
+\fbox{\begin{minipage}{0.92\linewidth}
+\small
+\textbf{Mermaid diagram placeholder}\\
+Ban goc Markdown/Wiki co so do Mermaid se render tren GitHub.\\
+Ban LaTeX/PDF nay giu cho cho hinh de ban co the thay bang hinh render sau.\\[0.5em]
+\textit{Dong dau tien cua so do:} flowchart LR
+\end{minipage}}
+\caption{Placeholder cho so do Mermaid. Neu can ban in an/chuyen nghiep hon, hay render Mermaid thanh SVG/PNG roi thay vao day.}
+\end{figure}
+
+\subsubsection{9.1. Muc 1: Tu teaching PHY sang standard-faithful
+PHY}\label{muc-1-tu-teaching-phy-sang-standard-faithful-phy}
+
+Can uu tien:
+
+\begin{itemize}
+\tightlist
+\item
+  QC-LDPC base graph + lifting + segmentation
+\item
+  Polar coding dung hon cho control
+\item
+  dung frame timing theo \texttt{mu}
+\item
+  PDCCH/CORESET/SearchSpace tot hon
+\item
+  SSB/PBCH basic acquisition
+\item
+  HARQ va RV combining
+\end{itemize}
+
+\subsubsection{9.2. Muc 2: Tu standard-faithful PHY sang MAC-coupled
+simulator}\label{muc-2-tu-standard-faithful-phy-sang-mac-coupled-simulator}
+
+Can them:
+
+\begin{itemize}
+\tightlist
+\item
+  scheduler
+\item
+  DCI/grant logic
+\item
+  CQI/PMI/RI feedback abstraction
+\item
+  retransmission loop
+\item
+  uplink channels
+\end{itemize}
+
+\subsubsection{9.3. Muc 3: Tu MAC-coupled simulator sang system
+simulator}\label{muc-3-tu-mac-coupled-simulator-sang-system-simulator}
+
+Can them:
+
+\begin{itemize}
+\tightlist
+\item
+  RLC/PDCP/RRC
+\item
+  mobility / measurements
+\item
+  QoS flows / SDAP
+\item
+  5GC control-plane simplification
+\end{itemize}
+
+\subsection{10. Goi y cach su dung du an nay dung ky
+vong}\label{goi-y-cach-su-dung-du-an-nay-dung-ky-vong}
+
+\subsubsection{10.1. Neu muc tieu la giang
+day}\label{neu-muc-tieu-la-giang-day}
+
+Du an rat hop cho:
+
+\begin{itemize}
+\tightlist
+\item
+  OFDM numerology
+\item
+  resource grid
+\item
+  DMRS/channel estimation
+\item
+  constellation/EVM/BER/BLER
+\item
+  fading/Doppler/CFO/STO sensitivity
+\end{itemize}
+
+\subsubsection{10.2. Neu muc tieu la nghien cuu giai
+thuat}\label{neu-muc-tieu-la-nghien-cuu-giai-thuat}
+
+Du an hop cho:
+
+\begin{itemize}
+\tightlist
+\item
+  sync algorithm benchmarking
+\item
+  CE/EQ algorithm comparison
+\item
+  impairment robustness study
+\item
+  GUI-based classroom demo
+\item
+  batch experimentation
+\end{itemize}
+
+\subsubsection{10.3. Neu muc tieu la xac minh chuan
+3GPP}\label{neu-muc-tieu-la-xac-minh-chuan-3gpp}
+
+Du an \textbf{chua phu hop} cho:
+
+\begin{itemize}
+\tightlist
+\item
+  conformance validation
+\item
+  interoperability
+\item
+  production-grade PHY claims
+\item
+  KPI threshold claims mang tinh thuong mai
+\end{itemize}
+
+\subsection{11. Hinh ve va du lieu nen bo sung de bai bao day dan
+hon}\label{hinh-ve-va-du-lieu-nen-bo-sung-de-bai-bao-day-dan-hon}
+
+Neu ban muon bien tai lieu nay thanh mot chuong trong luan van, mot
+report nghien cuu, hoac mot whitepaper de nop/bao ve, nen chen them:
+
+\begin{quote}
+{[}PLACEHOLDER-FIG-2{]} Anh chup GUI \texttt{PHY\ Pipeline} khi chay
+case baseline.
+\end{quote}
+
+\begin{quote}
+{[}PLACEHOLDER-FIG-3{]} Anh chup GUI \texttt{PHY\ Pipeline} khi chay
+vehicular scenario.
+\end{quote}
+
+\begin{quote}
+{[}PLACEHOLDER-FIG-4{]} Anh so sanh constellation pre/post equalization
+o 3 muc SNR.
+\end{quote}
+
+\begin{quote}
+{[}PLACEHOLDER-FIG-5{]} Anh heatmap resource grid co overlay
+control/data/DMRS.
+\end{quote}
+
+\begin{quote}
+{[}PLACEHOLDER-FIG-6{]} Anh chart BER-BLER-EVM theo SNR xuat tu batch
+experiments.
+\end{quote}
+
+\begin{quote}
+{[}PLACEHOLDER-TABLE-1{]} Bang doi chieu theo tung release (Rel-15
+-\textgreater{} Rel-19) voi pham vi simulator du kien trong roadmap.
+\end{quote}
+
+\begin{quote}
+{[}PLACEHOLDER-TABLE-2{]} Bang do KPI do duoc tren may cua ban khi chay
+3-5 scenario tieu bieu de bo sung tinh thuc nghiem.
+\end{quote}
+
+\subsection{12. Ket luan chot}\label{ket-luan-chot}
+
+Neu dung mot cau de dinh vi du an nay:
+
+\begin{quote}
+\textbf{Day la mot nen tang mo phong 5G NR PHY theo huong software-only,
+co giao dien quan sat rat manh, bam logic 3GPP o muc teaching/research,
+nhung chua phai he thong 5G day du va chua dat muc conformance-grade NR
+PHY.}
+\end{quote}
+
+Neu dung hai cau:
+
+\begin{itemize}
+\tightlist
+\item
+  So voi \textbf{he thong 5G thuc te nam 2026}, du an hien tai bao phu
+  rat tot mot phan cua \textbf{downlink PHY link-level}.
+\item
+  So voi \textbf{mot PHY simulator nghiem tuc phuc vu giang day va
+  nghien cuu}, du an da lam duoc rat nhieu dieu dung va co nen tang mo
+  rong rat tot.
+\end{itemize}
+
+\subsection{13. Tai lieu tham khao de doi chieu ben
+ngoai}\label{tai-lieu-tham-khao-de-doi-chieu-ben-ngoai}
+
+\begin{enumerate}
+\def\labelenumi{\arabic{enumi}.}
+\tightlist
+\item
+  3GPP Release 18 page:
+  \url{https://www.3gpp.org/specifications-technologies/releases/release-18}
+\item
+  3GPP Release 18 stage-3 completion note, ngay 10/04/2024:
+  \url{https://www.3gpp.org/technologies/ct-rel18}
+\item
+  3GPP Release 19 page:
+  \url{https://www.3gpp.org/specifications-technologies/releases/release-19}
+\item
+  GSMA The Mobile Economy 2025:
+  \url{https://www.gsma.com/solutions-and-impact/connectivity-for-good/mobile-economy/wp-content/uploads/2025/04/030325-The-Mobile-Economy-2025.pdf}
+\item
+  GSMA 5G Spectrum Public Policy Paper 2025:
+  \url{https://www.gsma.com/connectivity-for-good/spectrum/wp-content/uploads/2025/06/GSMA_5G-Public-Position-Paper-06_25-1.pdf}
+\item
+  GSMA Europe 2025 press release, 15/01/2025:
+  \url{https://www.gsma.com/newsroom/press-release/digital-infrastructure-investments-are-key-to-boosting-europes-global-competitiveness-according-to-new-gsma-report/}
+\end{enumerate}
+
+\subsection{14. Phu luc A - bang tom tat ``5G that co gi'' va ``du an da
+co gi''}\label{phu-luc-a---bang-tom-tat-5g-that-co-gi-va-du-an-da-co-gi}
+
+{\def\LTcaptype{none} % do not increment counter
+\begin{longtable}[]{@{}lll@{}}
+\toprule\noalign{}
+Nhom & 5G that & Du an \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+UE/RAN/Core & Co & Khong, chi PHY simulator \\
+Downlink PHY & Co & Co \\
+Uplink PHY & Co & Chua \\
+OFDM numerology & Co & Co, mot phan \\
+Resource grid & Co & Co \\
+DMRS & Co & Co, simplified \\
+CSI-RS / PT-RS / SRS & Co & Chua \\
+LDPC / Polar chuan & Co & Chua, chi inspired \\
+HARQ & Co & Chua \\
+MIMO / beamforming & Co & Chua \\
+Scheduler / DCI / CORESET & Co & Scaffold don gian \\
+Core network & Co & Chua \\
+GUI introspection & Thuong khong lo ra ngoai & Co, rat manh \\
+Batch teaching experiments & Khong phai chuc nang deployment & Co \\
+\end{longtable}
+}
+
+\subsection{15. Phu luc B - so do ``du an nay ngoi o dau trong buc tranh
+5G''}\label{phu-luc-b---so-do-du-an-nay-ngoi-o-dau-trong-buc-tranh-5g}
+
+\begin{figure}[H]
+\centering
+\fbox{\begin{minipage}{0.92\linewidth}
+\small
+\textbf{Mermaid diagram placeholder}\\
+Ban goc Markdown/Wiki co so do Mermaid se render tren GitHub.\\
+Ban LaTeX/PDF nay giu cho cho hinh de ban co the thay bang hinh render sau.\\[0.5em]
+\textit{Dong dau tien cua so do:} flowchart TD
+\end{minipage}}
+\caption{Placeholder cho so do Mermaid. Neu can ban in an/chuyen nghiep hon, hay render Mermaid thanh SVG/PNG roi thay vao day.}
+\end{figure}
+
+\end{document}

@@ -1,0 +1,32 @@
+---
+title: "He thong 5G thuc te hien nay va doi chieu voi du an 5G NR PHY STL"
+author: "Codex-assisted technical synthesis"
+date: "2026-04-13"
+lang: "vi"
+documentclass: article
+classoption:
+  - a4paper
+  - 11pt
+toc: true
+toc-depth: 3
+numbersections: true
+colorlinks: true
+linkcolor: blue
+urlcolor: blue
+geometry:
+  - margin=1in
+header-includes:
+  - \usepackage{float}
+  - \usepackage{booktabs}
+  - \usepackage{longtable}
+  - \usepackage{array}
+  - \usepackage{graphicx}
+  - \usepackage{caption}
+  - \usepackage{fvextra}
+  - \usepackage{fancyhdr}
+  - \pagestyle{fancy}
+  - \fancyhf{}
+  - \fancyhead[L]{5G NR PHY STL}
+  - \fancyhead[R]{Technical comparison}
+  - \fancyfoot[C]{\thepage}
+---
