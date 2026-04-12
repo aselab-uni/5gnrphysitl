@@ -853,6 +853,7 @@ Notes:
 - For deeper 3GPP-inspired teaching demos, see `docs/SHOWCASES_3GPP_PHY.md`.
 - For GUI parameter meanings, ranges, units, and symbols, see `docs/SIMULATION_PARAMETER_REFERENCE.md`.
 - For the proposed GUI architecture and PHY screen inventory, see `docs/GUI_ARCHITECTURE.md`.
+- For a deep comparison between this simulator and real-world 5G systems, see `docs/REAL_5G_SYSTEM_VS_PROJECT.md`.
 - `docs/SHOWCASES_3GPP_PHY.md` also includes a checklist to distinguish a teaching model from a conformance-grade NR PHY.
 
 ## 1. Problem Analysis
