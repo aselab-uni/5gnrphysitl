@@ -179,7 +179,10 @@ class NrPhyResearchApp(QMainWindow):
             file_transfer = result.get("file_transfer")
             if file_transfer:
                 status["Transfer mode"] = "File"
+                status["Transfer success"] = "Yes" if file_transfer.get("success") else "No"
                 status["File chunks"] = f"{file_transfer['chunks_passed']} / {file_transfer['total_chunks']} passed"
+                if file_transfer.get("received_snr_label"):
+                    status["RX SNR label"] = file_transfer["received_snr_label"]
                 status["RX restored file"] = file_transfer.get("restored_file_path") or "not written"
         self.dashboard.update_status(status)
 
@@ -217,6 +220,13 @@ class NrPhyResearchApp(QMainWindow):
             rx_output_dir = str(self.current_config.get("payload_io", {}).get("rx_output_dir", "")).strip() or "outputs/rx_files"
             notes.append(f"File-transfer mode is active. TX file: {tx_file}")
             notes.append(f"Recovered files are written under: {rx_output_dir}")
+            notes.append(
+                "File transfer is byte-perfect and all-or-nothing at the application level: "
+                "if all PHY chunks pass CRC, the RX file matches exactly; if any chunk fails, no RX file is written."
+            )
+            notes.append(
+                "Larger files are more sensitive because file success requires every transport block to survive the PHY chain."
+            )
 
         if result is not None:
             channel_state = result.get("channel_state", {})
@@ -231,6 +241,8 @@ class NrPhyResearchApp(QMainWindow):
                     f"File transfer used {transfer['total_chunks']} transport blocks. "
                     f"Chunk pass count: {transfer['chunks_passed']} / {transfer['total_chunks']}."
                 )
+                if transfer.get("received_snr_label"):
+                    notes.append(f"RX file label includes SNR tag: {transfer['received_snr_label']}.")
                 if transfer.get("error"):
                     notes.append(f"File transfer note: {transfer['error']}")
 

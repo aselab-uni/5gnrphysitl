@@ -75,3 +75,31 @@ def test_simulate_image_file_transfer_round_trip(tmp_path: Path) -> None:
     assert "__rx_" in restored.name
     assert transfer["received_timestamp_label"] in restored.name
     assert restored.read_bytes() == source.read_bytes()
+
+
+def test_simulate_text_file_transfer_fails_at_low_snr(tmp_path: Path) -> None:
+    source = tmp_path / "message.txt"
+    source.write_text("PHY pipeline file transfer demo.\n" * 40, encoding="utf-8")
+    config = _base_config(tmp_path)
+    config["channel"]["snr_db"] = 0.0
+    result = simulate_file_transfer(config, source_path=str(source), output_dir=str(tmp_path / "rx"))
+    transfer = result["file_transfer"]
+
+    assert transfer["success"] is False
+    assert transfer["chunks_failed"] > 0
+    assert transfer["restored_file_path"] is None
+    assert result["kpis"].bler > 0.0
+
+
+def test_simulate_image_file_transfer_fails_at_low_snr(tmp_path: Path) -> None:
+    root = Path(__file__).resolve().parents[1]
+    source = root / "input" / "sample_image.png"
+    config = _base_config(tmp_path)
+    config["channel"]["snr_db"] = 0.0
+    result = simulate_file_transfer(config, source_path=str(source), output_dir=str(tmp_path / "rx"))
+    transfer = result["file_transfer"]
+
+    assert transfer["success"] is False
+    assert transfer["chunks_failed"] > 0
+    assert transfer["restored_file_path"] is None
+    assert result["kpis"].bler > 0.0
