@@ -17,6 +17,7 @@ from .kpi import (
     spectral_efficiency_bps_hz,
     throughput_bps,
 )
+from .prach import detect_prach_preamble, preamble_id_to_bits
 from .resource_grid import ResourceGrid
 from .scrambling import descramble_llrs
 from .synchronization import correct_cfo, estimate_cfo_from_cp, estimate_symbol_timing
@@ -54,6 +55,10 @@ class RxResult:
     timing_offset: int
     cfo_estimate_hz: float
     kpis: LinkKpiSummary
+    prach_reference_sequence: np.ndarray | None = None
+    prach_candidate_metrics: np.ndarray | None = None
+    detected_preamble_id: int | None = None
+    prach_detection_metric: float | None = None
 
 
 class NrReceiver:
@@ -95,6 +100,136 @@ class NrReceiver:
             "rx_grid_tensor": grid.rx_grid_tensor,
         }
 
+    def _receive_prach(
+        self,
+        *,
+        tx_metadata: TxMetadata,
+        channel_state: Dict,
+        corrected: np.ndarray,
+        cp_removed_tensor: np.ndarray,
+        fft_bins_tensor: np.ndarray,
+        rx_grid_tensor: np.ndarray,
+        timing_offset: int,
+        cfo_estimate_hz: float,
+    ) -> RxResult:
+        rx_grid = rx_grid_tensor[0]
+        positions = tx_metadata.mapping.positions
+        rx_symbols = rx_grid[positions[:, 0], positions[:, 1]] if positions.size else np.array([], dtype=np.complex128)
+        reference_sequence = (
+            np.asarray(tx_metadata.prach_sequence, dtype=np.complex128).reshape(-1)
+            if tx_metadata.prach_sequence is not None
+            else np.array([], dtype=np.complex128)
+        )
+
+        if bool(self.config.get("receiver", {}).get("perfect_channel_estimation", False)) and "reference_channel_grid" in channel_state:
+            channel_estimate = np.asarray(channel_state["reference_channel_grid"], dtype=np.complex128)
+            h_symbols = channel_estimate[positions[:, 0], positions[:, 1]] if positions.size else np.array([], dtype=np.complex128)
+            channel_est_mse = 0.0
+        else:
+            if rx_symbols.size and reference_sequence.size:
+                ls_symbols = rx_symbols / np.where(np.abs(reference_sequence) > 1e-9, reference_sequence, 1.0)
+                flat_estimate = np.mean(ls_symbols)
+            else:
+                flat_estimate = 1.0 + 0.0j
+            channel_estimate = np.full_like(rx_grid, flat_estimate, dtype=np.complex128)
+            reference = np.asarray(channel_state.get("reference_channel_grid", channel_estimate), dtype=np.complex128)
+            channel_est_mse = channel_mse(channel_estimate, reference)
+            h_symbols = channel_estimate[positions[:, 0], positions[:, 1]] if positions.size else np.array([], dtype=np.complex128)
+
+        equalized = (
+            rx_symbols / np.where(np.abs(h_symbols) > 1e-9, h_symbols, 1.0 + 0.0j)
+            if rx_symbols.size
+            else np.array([], dtype=np.complex128)
+        )
+
+        prach_cfg = self.config.get("prach", {})
+        detection = detect_prach_preamble(
+            equalized,
+            num_preambles=int(prach_cfg.get("num_preambles", 64)),
+            root_sequence_index=int(tx_metadata.prach_root_sequence_index or prach_cfg.get("root_sequence_index", 25)),
+            cyclic_shift=int(tx_metadata.prach_cyclic_shift or prach_cfg.get("cyclic_shift", 13)),
+            threshold=float(prach_cfg.get("detection_threshold", 0.45)),
+        )
+        recovered_bits = preamble_id_to_bits(
+            detection.detected_preamble_id,
+            width=int(prach_cfg.get("preamble_id_bits", tx_metadata.payload_bits.size or 6)),
+        )
+        expected_preamble_id = int(tx_metadata.prach_preamble_id or 0)
+        crc_ok = bool(detection.detected and detection.detected_preamble_id == expected_preamble_id)
+        evm = error_vector_magnitude(reference_sequence, equalized) if reference_sequence.size else 0.0
+        est_snr = estimate_snr_db(reference_sequence, equalized - reference_sequence) if reference_sequence.size else float("-inf")
+        kpis = LinkKpiSummary(
+            ber=bit_error_rate(tx_metadata.payload_bits, recovered_bits),
+            bler=block_error_rate(crc_ok),
+            evm=evm,
+            throughput_bps=0.0,
+            spectral_efficiency_bps_hz=0.0,
+            estimated_snr_db=est_snr,
+            crc_ok=crc_ok,
+            channel_estimation_mse=channel_est_mse,
+            synchronization_error_samples=float(timing_offset - int(channel_state.get("sto_samples", 0))),
+            extra={
+                "cfo_estimate_hz": cfo_estimate_hz,
+                "prach_detected": 1.0 if detection.detected else 0.0,
+                "prach_detection_metric": float(detection.metric),
+                "prach_detected_preamble_id": float(detection.detected_preamble_id),
+                "prach_expected_preamble_id": float(expected_preamble_id),
+            },
+        )
+        return RxResult(
+            recovered_bits=recovered_bits,
+            crc_ok=crc_ok,
+            corrected_waveform=corrected,
+            spatial_layout=tx_metadata.spatial_layout,
+            tensor_view_specs={
+                "cp_removed_tensor": {
+                    "name": "cp_removed_tensor",
+                    "axes": ["rx_ant", "symbol", "sample"],
+                    "shape": [int(dim) for dim in cp_removed_tensor.shape],
+                    "description": "Per-receive-antenna OFDM symbols after cyclic-prefix removal.",
+                },
+                "fft_bins_tensor": {
+                    "name": "fft_bins_tensor",
+                    "axes": ["rx_ant", "symbol", "fft_bin"],
+                    "shape": [int(dim) for dim in fft_bins_tensor.shape],
+                    "description": "Per-receive-antenna FFT bins before active-subcarrier extraction.",
+                },
+                "rx_grid_tensor": {
+                    "name": "rx_grid_tensor",
+                    "axes": ["rx_ant", "symbol", "subcarrier"],
+                    "shape": [int(dim) for dim in rx_grid_tensor.shape],
+                    "description": "Per-receive-antenna FFT grid.",
+                },
+            },
+            cp_removed_tensor=cp_removed_tensor,
+            fft_bins_tensor=fft_bins_tensor,
+            rx_grid_tensor=rx_grid_tensor,
+            rx_grid=rx_grid,
+            re_data_positions=positions,
+            re_data_symbols=rx_symbols,
+            re_dmrs_positions=np.zeros((0, 2), dtype=int),
+            re_dmrs_symbols=np.array([], dtype=np.complex128),
+            rx_symbols=rx_symbols,
+            equalized_symbols=equalized,
+            detected_symbols=equalized.copy(),
+            channel_estimate=channel_estimate,
+            llrs=np.array([], dtype=np.float64),
+            descrambled_llrs=np.array([], dtype=np.float64),
+            rate_recovered_llrs=np.array([], dtype=np.float64),
+            decoder_input_llrs=np.array([], dtype=np.float64),
+            rate_recovered_code_blocks=(),
+            decoder_input_code_blocks=(),
+            recovered_code_blocks=(),
+            code_block_crc_ok=(),
+            timing_offset=timing_offset,
+            cfo_estimate_hz=cfo_estimate_hz,
+            kpis=kpis,
+            prach_reference_sequence=reference_sequence,
+            prach_candidate_metrics=detection.candidate_metrics,
+            detected_preamble_id=int(detection.detected_preamble_id),
+            prach_detection_metric=float(detection.metric),
+        )
+
     def receive(self, waveform: np.ndarray, tx_metadata: TxMetadata, channel_state: Dict | None = None) -> RxResult:
         receiver_cfg = self.config.get("receiver", {})
         channel_state = channel_state or {}
@@ -124,6 +259,18 @@ class NrReceiver:
         fft_bins_tensor = demod_result["fft_bins_tensor"]
         rx_grid_tensor = demod_result["rx_grid_tensor"]
         rx_grid = rx_grid_tensor[0]
+
+        if str(tx_metadata.channel_type).lower() == "prach":
+            return self._receive_prach(
+                tx_metadata=tx_metadata,
+                channel_state=channel_state,
+                corrected=corrected,
+                cp_removed_tensor=cp_removed_tensor,
+                fft_bins_tensor=fft_bins_tensor,
+                rx_grid_tensor=rx_grid_tensor,
+                timing_offset=timing_offset,
+                cfo_estimate_hz=cfo_estimate_hz,
+            )
 
         if bool(receiver_cfg.get("perfect_channel_estimation", False)) and "reference_channel_grid" in channel_state:
             h_full = np.asarray(channel_state["reference_channel_grid"], dtype=np.complex128)

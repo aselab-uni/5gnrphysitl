@@ -125,6 +125,21 @@ class ResourceGrid:
                     positions.append((symbol, sc))
         return np.asarray(positions, dtype=int)
 
+    def pucch_positions(self) -> np.ndarray:
+        positions = []
+        for symbol in self.allocation.pucch_symbols(self.numerology):
+            for sc in range(self.numerology.active_subcarriers):
+                positions.append((symbol, sc))
+        return np.asarray(positions, dtype=int)
+
+    def prach_positions(self) -> np.ndarray:
+        positions = []
+        subcarriers = min(self.allocation.prach_subcarriers, self.numerology.active_subcarriers)
+        for symbol in self.allocation.prach_symbols(self.numerology):
+            for sc in range(subcarriers):
+                positions.append((symbol, sc))
+        return np.asarray(positions, dtype=int)
+
     def control_re_mask(self) -> np.ndarray:
         mask = np.zeros(self.shape, dtype=np.uint8)
         positions = self.pdcch_positions()
@@ -151,15 +166,24 @@ class ResourceGrid:
             "control": self.control_re_mask(),
             "dmrs": self.dmrs_re_mask(),
             "data": self.data_re_mask(direction=direction),
+            "prach": self.prach_re_mask(),
         }
+
+    def prach_re_mask(self) -> np.ndarray:
+        mask = np.zeros(self.shape, dtype=np.uint8)
+        positions = self.prach_positions()
+        if positions.size:
+            mask[positions[:, 0], positions[:, 1]] = 1
+        return mask
 
     def mapping_for(self, channel_type: str, bits_per_symbol: int, modulation: str, *, direction: str = "downlink") -> ChannelMapping:
         channel_type = channel_type.lower()
         direction = str(direction).lower()
         if direction == "uplink":
-            if channel_type in {"control", "pucch"}:
-                raise NotImplementedError("PUCCH mapping is not implemented yet.")
-            positions = self.pusch_positions()
+            if channel_type == "prach":
+                positions = self.prach_positions()
+            else:
+                positions = self.pucch_positions() if channel_type in {"control", "pucch"} else self.pusch_positions()
         elif channel_type in {"control", "pdcch"}:
             positions = self.pdcch_positions()
         else:

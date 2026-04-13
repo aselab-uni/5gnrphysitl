@@ -40,7 +40,9 @@ def _reference_channel_grid(tx_metadata, frequency_response: np.ndarray) -> np.n
 
 
 def _payload_size_bits_for_channel(config: Dict, channel_type: str) -> int:
-    if channel_type.lower() in {"control", "pdcch"}:
+    if channel_type.lower() == "prach":
+        return int(config.get("prach", {}).get("preamble_id_bits", 6))
+    if channel_type.lower() in {"control", "pdcch", "pucch"}:
         return int(config.get("control_channel", {}).get("payload_bits", 128))
     return int(config.get("transport_block", {}).get("size_bits", 1024))
 
@@ -197,9 +199,21 @@ def _build_pipeline_trace(
 ) -> list[Dict]:
     tx_meta = tx_result.metadata
     rx_meta = rx_result
+    if str(tx_meta.channel_type).lower() == "prach":
+        return _build_prach_pipeline_trace(
+            tx_result,
+            rx_result,
+            impaired_waveform=impaired_waveform,
+            channel_output_waveform=channel_output_waveform,
+            rx_waveform=rx_waveform,
+            channel_state=channel_state,
+        )
     direction = str(getattr(tx_meta, "direction", "downlink")).lower()
     direction_label = "uplink" if direction == "uplink" else "downlink"
-    data_channel_label = "PUSCH-style" if direction == "uplink" else "PDSCH-style"
+    if direction == "uplink":
+        mapping_label = "PUCCH-style" if tx_meta.channel_type in {"control", "pucch"} else "PUSCH-style"
+    else:
+        mapping_label = "PDCCH-style" if tx_meta.channel_type in {"control", "pdcch"} else "PDSCH-style"
     coding_meta = tx_meta.coding_metadata
     transport_with_crc = (
         np.asarray(coding_meta.transport_block_with_crc, dtype=np.uint8)
@@ -308,7 +322,7 @@ def _build_pipeline_trace(
             "section": "TX",
             "stage": "Resource grid mapping",
             "domain": "grid",
-            "description": f"Mapped {data_channel_label} symbols on the active NR-like resource grid before DMRS insertion.",
+            "description": f"Mapped {mapping_label} symbols on the active NR-like resource grid before DMRS insertion.",
             "preview_kind": "grid",
             "data": tx_meta.tx_grid_data,
             "artifact_type": "grid",
@@ -540,6 +554,162 @@ def _build_pipeline_trace(
     return _normalize_pipeline(stages)
 
 
+def _build_prach_pipeline_trace(
+    tx_result,
+    rx_result,
+    *,
+    impaired_waveform: np.ndarray,
+    channel_output_waveform: np.ndarray,
+    rx_waveform: np.ndarray,
+    channel_state: Dict,
+) -> list[Dict]:
+    tx_meta = tx_result.metadata
+    rx_meta = rx_result
+    detected_id = int(rx_meta.detected_preamble_id or 0)
+    expected_id = int(tx_meta.prach_preamble_id or 0)
+    sequence = (
+        np.asarray(tx_meta.prach_sequence, dtype=np.complex128)
+        if tx_meta.prach_sequence is not None
+        else tx_meta.modulation_symbols
+    )
+    stages = [
+        {
+            "section": "TX",
+            "stage": "PRACH preamble identity",
+            "domain": "bits",
+            "description": "Random-access preamble identifier encoded as a compact bit label for GUI and KPI tracing.",
+            "preview_kind": "bits",
+            "data": tx_meta.payload_bits,
+            "artifact_type": "bits",
+            "input_shape": [int(dim) for dim in np.asarray(tx_meta.payload_bits).shape],
+            "output_shape": [int(dim) for dim in np.asarray(tx_meta.payload_bits).shape],
+            "notes": f"Expected preamble ID: {expected_id}",
+        },
+        {
+            "section": "TX",
+            "stage": "PRACH preamble generation",
+            "domain": "symbols",
+            "description": "A Zadoff-Chu-derived PRACH preamble sequence is generated for the selected preamble index and cyclic shift.",
+            "preview_kind": "constellation",
+            "data": sequence,
+            "artifact_type": "constellation",
+            "input_shape": [int(dim) for dim in np.asarray(tx_meta.payload_bits).shape],
+            "output_shape": [int(dim) for dim in np.asarray(sequence).shape],
+            "notes": (
+                f"Root sequence index: {int(tx_meta.prach_root_sequence_index or 25)} | "
+                f"Cyclic shift: {int(tx_meta.prach_cyclic_shift or 13)}"
+            ),
+        },
+        {
+            "section": "TX",
+            "stage": "PRACH occasion mapping",
+            "domain": "grid",
+            "description": "The PRACH preamble is mapped onto a simplified PRACH occasion occupying dedicated OFDM symbol(s) and subcarriers.",
+            "preview_kind": "grid",
+            "data": tx_meta.tx_grid,
+            "artifact_type": "grid",
+            "input_shape": [int(dim) for dim in np.asarray(sequence).shape],
+            "output_shape": [int(dim) for dim in np.asarray(tx_meta.tx_grid).shape],
+        },
+        {
+            "section": "TX",
+            "stage": "OFDM modulation + CP",
+            "domain": "waveform",
+            "description": "Baseband PRACH waveform after OFDM modulation and cyclic-prefix insertion.",
+            "preview_kind": "waveform",
+            "data": tx_result.waveform,
+            "artifact_type": "waveform",
+            "input_shape": [int(dim) for dim in np.asarray(tx_meta.tx_grid).shape],
+            "output_shape": [int(dim) for dim in np.asarray(tx_result.waveform).shape],
+        },
+        {
+            "section": "Channel",
+            "stage": "RF/baseband impairments",
+            "domain": "waveform",
+            "description": "PRACH waveform after STO, CFO, phase noise, and IQ imbalance.",
+            "preview_kind": "waveform",
+            "data": impaired_waveform,
+            "artifact_type": "waveform",
+        },
+        {
+            "section": "Channel",
+            "stage": "Fading / path loss / Doppler output" if not channel_state.get("gnu_radio_used", False) else "GNU Radio loopback output",
+            "domain": "waveform",
+            "description": "Waveform after channel propagation or GNU Radio loopback processing.",
+            "preview_kind": "waveform",
+            "data": channel_output_waveform,
+            "artifact_type": "waveform",
+        },
+        {
+            "section": "Channel",
+            "stage": "AWGN / received waveform",
+            "domain": "waveform",
+            "description": "Final received PRACH waveform before timing and frequency correction.",
+            "preview_kind": "waveform",
+            "data": rx_waveform,
+            "artifact_type": "waveform",
+        },
+        {
+            "section": "RX",
+            "stage": "Timing / CFO correction",
+            "domain": "waveform",
+            "description": "Waveform after coarse timing alignment and CFO correction.",
+            "preview_kind": "waveform",
+            "data": rx_meta.corrected_waveform,
+            "artifact_type": "waveform",
+        },
+        {
+            "section": "RX",
+            "stage": "Remove CP",
+            "domain": "grid",
+            "description": "Cyclic prefix removed from the received PRACH OFDM symbols.",
+            "preview_kind": "grid",
+            "data": np.abs(rx_meta.cp_removed_tensor[0]),
+            "artifact_type": "grid",
+        },
+        {
+            "section": "RX",
+            "stage": "FFT",
+            "domain": "grid",
+            "description": "FFT bins before active-subcarrier extraction for the PRACH occasion.",
+            "preview_kind": "grid",
+            "data": np.abs(rx_meta.fft_bins_tensor[0]),
+            "artifact_type": "grid",
+        },
+        {
+            "section": "RX",
+            "stage": "PRACH resource extraction",
+            "domain": "symbols",
+            "description": "Extracted PRACH resource elements feeding the correlation detector.",
+            "preview_kind": "constellation",
+            "data": rx_meta.equalized_symbols,
+            "artifact_type": "constellation",
+            "notes": f"Extracted RE count: {int(rx_meta.re_data_symbols.size)}",
+        },
+        {
+            "section": "RX",
+            "stage": "PRACH correlation detector",
+            "domain": "llr",
+            "description": "Matched filtering across candidate preamble indices produces a normalized detection metric for each PRACH hypothesis.",
+            "preview_kind": "llr",
+            "data": np.asarray(rx_meta.prach_candidate_metrics if rx_meta.prach_candidate_metrics is not None else np.array([], dtype=np.float64)),
+            "artifact_type": "llr",
+            "notes": f"Peak metric: {float(rx_meta.prach_detection_metric or 0.0):.4f}",
+        },
+        {
+            "section": "RX",
+            "stage": "PRACH decision",
+            "domain": "bits",
+            "description": f"Detected PRACH preamble ID {detected_id}. Decision status: {'OK' if rx_meta.crc_ok else 'FAIL'}.",
+            "preview_kind": "bits",
+            "data": rx_meta.recovered_bits,
+            "artifact_type": "bits",
+            "notes": f"Expected ID: {expected_id} | Detected ID: {detected_id}",
+        },
+    ]
+    return _normalize_pipeline(stages)
+
+
 def simulate_link(
     config: Dict,
     channel_type: str | None = None,
@@ -707,6 +877,8 @@ def simulate_file_transfer(
 ) -> Dict:
     config = deepcopy(config)
     active_channel_type = channel_type or config.get("link", {}).get("channel_type", "data")
+    if str(active_channel_type).lower() == "prach":
+        raise ValueError("File transfer is not supported over the PRACH baseline.")
     package = build_file_payload_package(source_path)
     payload_bits_per_chunk = _payload_size_bits_for_channel(config, active_channel_type)
     chunks = chunk_bitstream(package.package_bits, payload_bits_per_chunk)

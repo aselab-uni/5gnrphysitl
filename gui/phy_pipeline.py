@@ -71,7 +71,8 @@ class PhyPipelinePanel(QWidget):
             "<b>Interactive PHY Flow Explorer</b><br>"
             "Bits -> TB CRC -> Segmentation + CB CRC -> Coding -> Rate Matching -> Scrambling -> QAM Mapping -> (Optional UL Transform Precoding) -> Resource Grid + DMRS -> "
             "OFDM/IFFT + CP -> Channel/Impairments -> Sync -> FFT -> Channel Estimation -> Equalization -> "
-            "(Optional UL Inverse Transform) -> Demapping -> Decoding -> CRC Check"
+            "(Optional UL Inverse Transform) -> Demapping -> Decoding -> CRC Check<br>"
+            "PRACH baseline: Preamble ID -> Zadoff-Chu preamble -> PRACH occasion -> OFDM -> Channel -> Correlation detector -> Preamble decision"
         )
         layout.addWidget(self.overview_label)
 
@@ -876,9 +877,15 @@ class PhyPipelinePanel(QWidget):
         config = result["config"]
         channel_state = result["channel_state"]
         tx_meta = tx.metadata
+        if str(tx_meta.channel_type).lower() == "prach":
+            return self._pipeline_contract_stages(result)
         coding_meta = tx_meta.coding_metadata
         direction = str(getattr(tx_meta, "direction", "downlink")).lower()
         transform_precoding_enabled = bool(getattr(tx_meta, "transform_precoding_enabled", False))
+        if direction == "uplink":
+            mapping_label = "PUCCH-style" if tx_meta.channel_type in {"control", "pucch"} else "PUSCH-style"
+        else:
+            mapping_label = "PDCCH-style" if tx_meta.channel_type in {"control", "pdcch"} else "PDSCH-style"
         numerology = tx_meta.numerology
         positions = tx_meta.mapping.positions
         payload_with_crc = (
@@ -920,7 +927,7 @@ class PhyPipelinePanel(QWidget):
         post_eq_symbols = rx.detected_symbols
         mapping_table = self._mapping_table_text(tx_meta.mapper)
         code_rate = tx_meta.payload_bits.size / max(coding_meta.rate_matched_length, 1)
-        code_stage = "Polar-like control coder" if tx_meta.channel_type in {"control", "pdcch", "pbch"} else "LDPC-inspired coder"
+        code_stage = "Control small-block coder" if tx_meta.channel_type in {"control", "pdcch", "pbch", "pucch"} else "LDPC-inspired coder"
         data_re_mask = (allocation_map == 2.0).astype(np.float32)
 
         stages = self._stage_definitions(
@@ -950,6 +957,7 @@ class PhyPipelinePanel(QWidget):
             code_rate=code_rate,
             code_stage=code_stage,
             direction=direction,
+            mapping_label=mapping_label,
             transform_precoding_enabled=transform_precoding_enabled,
             positions=positions,
             data_re_mask=data_re_mask,
@@ -958,6 +966,33 @@ class PhyPipelinePanel(QWidget):
         if transfer:
             stages = [*self._file_transfer_entry_stages(result), *stages, *self._file_transfer_exit_stages(result)]
         return [normalize_pipeline_stage(stage) for stage in stages]
+
+    def _pipeline_contract_stages(self, result: dict[str, Any]) -> list[dict[str, Any]]:
+        slot_context = result.get("slot_context", {})
+        frame_index = int(slot_context.get("frame_index", 0))
+        slot_index = int(slot_context.get("slot_index", 0))
+        stages: list[dict[str, Any]] = []
+        for index, stage in enumerate(result.get("pipeline", [])):
+            normalized = normalize_pipeline_stage(stage)
+            metrics = dict(normalized.get("metrics", {}))
+            metrics.setdefault("Frame", frame_index)
+            metrics.setdefault("Slot", slot_index)
+            stages.append(
+                {
+                    "key": str(normalized.get("key", f"pipeline_{index}")),
+                    "section": str(normalized.get("section", "Other")),
+                    "flow_label": str(normalized.get("flow_label", normalized.get("stage", f"Stage {index + 1}"))),
+                    "title": str(normalized.get("title", normalized.get("stage", f"Stage {index + 1}"))),
+                    "description": str(normalized.get("description", "")),
+                    "metrics": metrics,
+                    "artifacts": normalized.get("artifacts", []),
+                    "artifact_type": normalized.get("artifact_type", "text"),
+                    "input_shape": normalized.get("input_shape"),
+                    "output_shape": normalized.get("output_shape"),
+                    "notes": str(normalized.get("notes", "")),
+                }
+            )
+        return stages
 
     def _stage_definitions(
         self,
@@ -988,6 +1023,7 @@ class PhyPipelinePanel(QWidget):
         code_rate: float,
         code_stage: str,
         direction: str,
+        mapping_label: str,
         transform_precoding_enabled: bool,
         positions: np.ndarray,
         data_re_mask: np.ndarray,
@@ -1149,7 +1185,7 @@ class PhyPipelinePanel(QWidget):
                 "section": "TX",
                 "flow_label": "Grid + DMRS",
                 "title": "Resource Grid + DMRS",
-                "description": f"Mapped {'PUSCH-style' if direction == 'uplink' else 'PDSCH-style'} symbols are placed onto the NR-like resource grid. DMRS is inserted on configured OFDM symbols for channel estimation.",
+                "description": f"Mapped {mapping_label} symbols are placed onto the NR-like resource grid. DMRS is inserted on configured OFDM symbols for channel estimation.",
                 "metrics": {
                     "Grid shape": f"{tx_meta.tx_grid.shape[0]} x {tx_meta.tx_grid.shape[1]}",
                     "Control RE count": int(np.sum(allocation_map == 1)),

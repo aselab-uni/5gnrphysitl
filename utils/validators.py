@@ -40,5 +40,9 @@ def validate_config(config: dict) -> dict:
     frame = config.get("frame", {})
     if int(frame.get("pusch_start_symbol", frame.get("pdsch_start_symbol", 0))) < 0:
         raise ValueError("frame.pusch_start_symbol must be non-negative.")
+    if int(frame.get("prach_symbol_count", 1)) < 1:
+        raise ValueError("frame.prach_symbol_count must be at least 1.")
+    if int(frame.get("prach_subcarriers", 12)) < 12:
+        raise ValueError("frame.prach_subcarriers must be at least 12.")
 
     return config

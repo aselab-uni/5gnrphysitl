@@ -301,7 +301,7 @@ class NrLdpcInspiredCoder:
 
 
 class PolarLikeControlCoder:
-    """Small-block control-channel coder using a simplified polar transform."""
+    """Small-block control-channel coder with explicit rate matching and soft decoding."""
 
     def __init__(self, target_rate: float = 0.25, crc_type: str = "crc8") -> None:
         self.target_rate = float(target_rate)
@@ -314,12 +314,9 @@ class PolarLikeControlCoder:
         redundancy_version: int = 0,
     ) -> Tuple[np.ndarray, CodingMetadata]:
         payload_crc = attach_crc(np.asarray(payload_bits, dtype=np.uint8), self.crc_type)
-        polar_length = _next_power_of_two(max(payload_crc.size, int(np.ceil(payload_crc.size / max(self.target_rate, 1e-3)))))
-        reliability = _reliability_order(polar_length)
-        info_positions = np.sort(reliability[-payload_crc.size :])
-        u = np.zeros(polar_length, dtype=np.uint8)
-        u[info_positions] = payload_crc
-        mother = _polar_transform(u)
+        repetition_factor = max(2, int(np.ceil(1.0 / max(self.target_rate, 1e-3))))
+        mother = np.tile(payload_crc, repetition_factor)
+        interleaver = np.arange(mother.size, dtype=int)
         rate_matched = _circular_rate_match(mother, target_length=target_length, rv=redundancy_version)
         metadata = CodingMetadata(
             channel_type="control",
@@ -328,16 +325,16 @@ class PolarLikeControlCoder:
             rate_matched_length=target_length,
             mother_length=mother.size,
             redundancy_version=redundancy_version,
-            polar_length=polar_length,
-            info_positions=info_positions,
+            interleaver=interleaver,
+            repetition_factor=repetition_factor,
             tb_crc_width=CRC_DEFINITIONS[self.crc_type][0],
             code_block_crc_type=None,
             code_block_count=1,
             code_block_payload_lengths=(int(payload_crc.size),),
             code_block_with_crc_lengths=(int(payload_crc.size),),
             mother_block_lengths=(int(mother.size),),
-            code_block_interleavers=(np.arange(mother.size, dtype=int),),
-            code_block_repetition_factors=(1,),
+            code_block_interleavers=(interleaver.copy(),),
+            code_block_repetition_factors=(repetition_factor,),
             transport_block_with_crc=payload_crc.copy(),
             code_block_payloads=(payload_crc.copy(),),
             code_blocks_with_crc=(payload_crc.copy(),),
@@ -351,16 +348,15 @@ class PolarLikeControlCoder:
 
     def decode_with_trace(self, llrs: np.ndarray, metadata: CodingMetadata) -> tuple[np.ndarray, bool, DecodingTrace]:
         recovered = rate_recover_llrs(llrs, metadata)
-        assert metadata.polar_length is not None
-        assert metadata.info_positions is not None
-        frozen = np.ones(metadata.polar_length, dtype=bool)
-        frozen[metadata.info_positions] = False
-        u_hat = _sc_decode(recovered, frozen)
-        payload_crc = u_hat[metadata.info_positions]
+        deinterleaved = np.zeros_like(recovered)
+        assert metadata.interleaver is not None
+        deinterleaved[np.asarray(metadata.interleaver, dtype=int)] = recovered
+        combined = deinterleaved.reshape(int(metadata.repetition_factor), -1).sum(axis=0)
+        payload_crc = (combined < 0).astype(np.uint8)
         payload, crc_ok = check_crc(payload_crc, metadata.crc_type)
         trace = DecodingTrace(
             rate_recovered_blocks=(recovered.copy(),),
-            decoder_input_blocks=(recovered.copy(),),
+            decoder_input_blocks=(combined.copy(),),
             recovered_code_blocks=(payload_crc.copy(),),
             code_block_crc_ok=(bool(crc_ok),),
             transport_block_with_crc_bits=payload_crc.copy(),
@@ -370,7 +366,7 @@ class PolarLikeControlCoder:
 
 def build_channel_coder(channel_type: str, config: Dict) -> object:
     coding_cfg = config.get("coding", {})
-    if channel_type.lower() in {"control", "pdcch", "pbch"}:
+    if channel_type.lower() in {"control", "pdcch", "pbch", "pucch"}:
         return PolarLikeControlCoder(
             target_rate=float(coding_cfg.get("control_rate", 0.25)),
             crc_type=str(coding_cfg.get("control_crc", "crc8")),

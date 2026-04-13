@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from phy.coding import NrLdpcInspiredCoder
+from phy.coding import NrLdpcInspiredCoder, PolarLikeControlCoder
 
 
 def test_ldpc_inspired_coder_exposes_code_block_metadata() -> None:
@@ -53,3 +53,17 @@ def test_ldpc_inspired_decode_trace_round_trips_segmented_payload() -> None:
     assert len(trace.code_block_crc_ok) == metadata.code_block_count
     assert all(trace.code_block_crc_ok)
     assert trace.transport_block_with_crc_bits.size == metadata.transport_block_with_crc.size
+
+
+def test_control_coder_round_trips_in_ideal_llr_conditions() -> None:
+    payload = np.arange(128, dtype=np.uint8) % 2
+    coder = PolarLikeControlCoder(target_rate=0.25, crc_type="crc8")
+
+    coded_bits, metadata = coder.encode(payload_bits=payload, target_length=1152, redundancy_version=0)
+    llrs = np.where(coded_bits == 0, 8.0, -8.0)
+    recovered_bits, crc_ok, trace = coder.decode_with_trace(llrs, metadata)
+
+    assert crc_ok is True
+    assert np.array_equal(recovered_bits, payload)
+    assert len(trace.rate_recovered_blocks) == 1
+    assert len(trace.decoder_input_blocks) == 1

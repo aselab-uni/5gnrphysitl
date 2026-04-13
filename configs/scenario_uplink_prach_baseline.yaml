@@ -1,0 +1,22 @@
+link:
+  direction: uplink
+  channel_type: prach
+
+uplink:
+  transform_precoding: false
+
+channel:
+  model: awgn
+  profile: static_near
+  snr_db: 24.0
+  cfo_hz: 0.0
+  sto_samples: 0
+  phase_noise_std: 0.0
+  iq_imbalance_db: 0.0
+
+receiver:
+  perfect_sync: true
+  perfect_channel_estimation: true
+
+simulation:
+  capture_slots: 2

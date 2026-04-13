@@ -1492,6 +1492,18 @@ Ready-made uplink baseline scenario:
 python main.py --config configs/default.yaml --override configs/scenario_uplink_baseline.yaml --gui
 ```
 
+Ready-made uplink control baseline scenario:
+
+```bash
+python main.py --config configs/default.yaml --override configs/scenario_uplink_control_baseline.yaml --gui
+```
+
+Ready-made uplink PRACH baseline scenario:
+
+```bash
+python main.py --config configs/default.yaml --override configs/scenario_uplink_prach_baseline.yaml --gui
+```
+
 ### Launch GUI
 
 ```bash
@@ -1599,11 +1611,12 @@ python main.py --config configs/default.yaml --override configs/scenario_vehicul
 - Data-channel coding is LDPC-inspired, not standards-compliant QC-LDPC.
 - Control-channel coding is polar-like and small-block focused, not full NR polar coding.
 - Resource allocation is slot-local and simplified; there is no full scheduler/DCI implementation.
-- Uplink support currently covers a `data` / `PUSCH-style` baseline only.
+- Uplink support currently covers a `data` / `PUSCH-style` baseline, a minimal `control` / `PUCCH-style` baseline, and a `PRACH` preamble-detection baseline.
 - DMRS patterns are NR-inspired but simplified.
 - Synchronization and CFO recovery are intentionally lightweight.
 - Fading, Doppler, phase noise, and IQ imbalance models are suitable for study/prototyping, not conformance.
-- SSB/PBCH, PUSCH, PUCCH, and PRACH are scaffold targets rather than complete implementations in this version.
+- `PRACH` is a baseline random-access preamble path, not a full PRACH occasion/configuration implementation.
+- SSB/PBCH remains a scaffold target rather than a complete implementation in this version.
 
 ## 13. Roadmap
 

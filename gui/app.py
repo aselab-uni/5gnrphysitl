@@ -195,6 +195,12 @@ class NrPhyResearchApp(QMainWindow):
                 if file_transfer.get("received_snr_label"):
                     status["RX SNR label"] = file_transfer["received_snr_label"]
                 status["RX restored file"] = file_transfer.get("restored_file_path") or "not written"
+            elif str(self.current_config.get("link", {}).get("channel_type", "data")).lower() == "prach":
+                status["PRACH detected"] = "Yes" if result["rx"].crc_ok else "No"
+                status["PRACH metric"] = f"{float(result['rx'].prach_detection_metric or 0.0):.4f}"
+                status["Preamble ID"] = (
+                    f"{int(result['rx'].detected_preamble_id or 0)} / expected {int(result['tx'].metadata.prach_preamble_id or 0)}"
+                )
         self.dashboard.update_status(status)
 
     def _update_notes(self, result: dict | None = None) -> None:
@@ -205,9 +211,11 @@ class NrPhyResearchApp(QMainWindow):
         channel = config.get("channel", {})
         receiver = config.get("receiver", {})
         simulation = config.get("simulation", {})
+        mode_label = str(link.get("channel_type", "data"))
+        modulation_label = "PRACH preamble" if mode_label.lower() == "prach" else str(modulation.get("scheme", "QPSK"))
 
         notes = [
-            f"Direction: {link.get('direction', 'downlink')} | Mode: {link.get('channel_type', 'data')} | Modulation: {modulation.get('scheme', 'QPSK')} | "
+            f"Direction: {link.get('direction', 'downlink')} | Mode: {mode_label} | Modulation: {modulation_label} | "
             f"SCS: {numerology.get('scs_khz', 30)} kHz | FFT: {numerology.get('fft_size', 512)}",
             f"Channel: {channel.get('model', 'awgn')} / {channel.get('profile', 'static_near')} | "
             f"SNR: {channel.get('snr_db', 0.0)} dB | Doppler: {channel.get('doppler_hz', 0.0)} Hz",
@@ -221,7 +229,12 @@ class NrPhyResearchApp(QMainWindow):
         if bool(receiver.get("perfect_channel_estimation", False)):
             notes.append("Perfect channel estimation is enabled. DMRS estimation plots remain useful, but KPI values are optimistic.")
         if str(link.get("direction", "downlink")).lower() == "uplink":
-            if bool(config.get("uplink", {}).get("transform_precoding", False)):
+            channel_type = str(link.get("channel_type", "data")).lower()
+            if channel_type == "prach":
+                notes.append("Uplink PRACH baseline is active. The chain generates a Zadoff-Chu-style preamble, maps it onto a PRACH occasion, and performs matched-filter detection at the receiver.")
+            elif channel_type in {"control", "pucch"}:
+                notes.append("Uplink control baseline is active. The current chain uses a PUCCH-style control allocation with the control coder and control modulation settings.")
+            elif bool(config.get("uplink", {}).get("transform_precoding", False)):
                 notes.append("Uplink baseline is active with transform precoding enabled. The PHY Pipeline includes transform precoding and inverse transform stages.")
             else:
                 notes.append("Uplink baseline is active in CP-OFDM mode. Enable transform precoding to inspect a DFT-s-OFDM style PUSCH path.")
@@ -267,6 +280,11 @@ class NrPhyResearchApp(QMainWindow):
                     notes.append(f"RX file label includes SNR tag: {transfer['received_snr_label']}.")
                 if transfer.get("error"):
                     notes.append(f"File transfer note: {transfer['error']}")
+            elif str(link.get("channel_type", "data")).lower() == "prach":
+                notes.append(
+                    f"PRACH detection metric: {float(result['rx'].prach_detection_metric or 0.0):.4f}. "
+                    f"Detected preamble: {int(result['rx'].detected_preamble_id or 0)}."
+                )
 
         notes.append("Signal-domain sync summary mixes samples, Hz, and linear EVM for quick diagnostics.")
         self.dashboard.set_notes(notes)

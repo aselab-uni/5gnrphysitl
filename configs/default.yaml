@@ -39,7 +39,10 @@ frame:
   control_symbols: 2
   pdsch_start_symbol: 2
   pusch_start_symbol: 2
+  pucch_symbol_count: 2
+  prach_symbol_count: 1
   control_subcarriers: 72
+  prach_subcarriers: 72
   dmrs_symbols: [3, 10]
 
 transport_block:
@@ -48,6 +51,14 @@ transport_block:
 control_channel:
   payload_bits: 128
   modulation: QPSK
+
+prach:
+  preamble_id: 7
+  preamble_id_bits: 6
+  num_preambles: 64
+  root_sequence_index: 25
+  cyclic_shift: 13
+  detection_threshold: 0.45
 
 coding:
   scheme: ldpc_inspired
