@@ -6,7 +6,7 @@ from typing import Dict
 import numpy as np
 
 from .channel_estimation import channel_mse, ls_estimate_from_dmrs
-from .coding import build_channel_coder
+from .coding import build_channel_coder, rate_recover_llrs
 from .equalization import equalize
 from .kpi import (
     LinkKpiSummary,
@@ -30,13 +30,21 @@ class RxResult:
     corrected_waveform: np.ndarray
     spatial_layout: object
     tensor_view_specs: Dict[str, Dict[str, object]]
+    cp_removed_tensor: np.ndarray
+    fft_bins_tensor: np.ndarray
     rx_grid_tensor: np.ndarray
     rx_grid: np.ndarray
+    re_data_positions: np.ndarray
+    re_data_symbols: np.ndarray
+    re_dmrs_positions: np.ndarray
+    re_dmrs_symbols: np.ndarray
     rx_symbols: np.ndarray
     equalized_symbols: np.ndarray
     channel_estimate: np.ndarray
     llrs: np.ndarray
     descrambled_llrs: np.ndarray
+    rate_recovered_llrs: np.ndarray
+    decoder_input_llrs: np.ndarray
     timing_offset: int
     cfo_estimate_hz: float
     kpis: LinkKpiSummary
@@ -46,7 +54,7 @@ class NrReceiver:
     def __init__(self, config: Dict) -> None:
         self.config = config
 
-    def _ofdm_demodulate(self, waveform: np.ndarray, tx_metadata: TxMetadata, timing_offset: int) -> np.ndarray:
+    def _ofdm_demodulate(self, waveform: np.ndarray, tx_metadata: TxMetadata, timing_offset: int) -> Dict[str, np.ndarray]:
         numerology = tx_metadata.numerology
         grid = ResourceGrid(numerology, tx_metadata.allocation, spatial_layout=tx_metadata.spatial_layout)
         symbol_length = numerology.fft_size + numerology.cp_length
@@ -55,6 +63,14 @@ class NrReceiver:
         if waveform_tensor.ndim == 1:
             waveform_tensor = waveform_tensor[None, :]
         rx_ants = min(waveform_tensor.shape[0], tx_metadata.spatial_layout.num_rx_antennas)
+        cp_removed_tensor = np.zeros(
+            (tx_metadata.spatial_layout.num_rx_antennas, numerology.symbols_per_slot, numerology.fft_size),
+            dtype=np.complex128,
+        )
+        fft_bins_tensor = np.zeros(
+            (tx_metadata.spatial_layout.num_rx_antennas, numerology.symbols_per_slot, numerology.fft_size),
+            dtype=np.complex128,
+        )
         for rx_ant in range(rx_ants):
             aligned = waveform_tensor[rx_ant, timing_offset : timing_offset + samples_needed]
             if aligned.size < samples_needed:
@@ -63,9 +79,15 @@ class NrReceiver:
                 start = symbol * symbol_length
                 block = aligned[start : start + symbol_length]
                 no_cp = block[numerology.cp_length :]
+                cp_removed_tensor[rx_ant, symbol] = no_cp
                 fft_bins = np.fft.fft(no_cp, n=numerology.fft_size)
+                fft_bins_tensor[rx_ant, symbol] = fft_bins
                 grid.rx_grid_tensor[rx_ant, symbol] = grid.ifft_bins_to_active(fft_bins)
-        return grid.rx_grid_tensor
+        return {
+            "cp_removed_tensor": cp_removed_tensor,
+            "fft_bins_tensor": fft_bins_tensor,
+            "rx_grid_tensor": grid.rx_grid_tensor,
+        }
 
     def receive(self, waveform: np.ndarray, tx_metadata: TxMetadata, channel_state: Dict | None = None) -> RxResult:
         receiver_cfg = self.config.get("receiver", {})
@@ -91,7 +113,10 @@ class NrReceiver:
             )
 
         corrected = correct_cfo(waveform[timing_offset:], cfo_hz=cfo_estimate_hz, sample_rate=numerology.sample_rate)
-        rx_grid_tensor = self._ofdm_demodulate(corrected, tx_metadata, timing_offset=0)
+        demod_result = self._ofdm_demodulate(corrected, tx_metadata, timing_offset=0)
+        cp_removed_tensor = demod_result["cp_removed_tensor"]
+        fft_bins_tensor = demod_result["fft_bins_tensor"]
+        rx_grid_tensor = demod_result["rx_grid_tensor"]
         rx_grid = rx_grid_tensor[0]
 
         if bool(receiver_cfg.get("perfect_channel_estimation", False)) and "reference_channel_grid" in channel_state:
@@ -109,6 +134,12 @@ class NrReceiver:
 
         positions = tx_metadata.mapping.positions
         rx_symbols = rx_grid[positions[:, 0], positions[:, 1]]
+        dmrs_positions = np.asarray(tx_metadata.dmrs["positions"], dtype=int)
+        re_dmrs_symbols = (
+            rx_grid[dmrs_positions[:, 0], dmrs_positions[:, 1]]
+            if dmrs_positions.size
+            else np.array([], dtype=np.complex128)
+        )
         h_symbols = h_full[positions[:, 0], positions[:, 1]]
         noise_variance = float(channel_state.get("noise_variance", 1e-3))
         equalized = equalize(
@@ -119,6 +150,8 @@ class NrReceiver:
         )
         llrs = tx_metadata.mapper.demap_llr(equalized, noise_variance=max(noise_variance, 1e-9))
         descrambled_llrs = descramble_llrs(llrs, tx_metadata.scrambling_sequence)
+        rate_recovered_llrs = rate_recover_llrs(descrambled_llrs, tx_metadata.coding_metadata)
+        decoder_input_llrs = rate_recovered_llrs.copy()
 
         coder = build_channel_coder(channel_type=tx_metadata.channel_type, config=self.config)
         recovered_bits, crc_ok = coder.decode(descrambled_llrs, tx_metadata.coding_metadata)
@@ -153,6 +186,18 @@ class NrReceiver:
             corrected_waveform=corrected,
             spatial_layout=tx_metadata.spatial_layout,
             tensor_view_specs={
+                "cp_removed_tensor": {
+                    "name": "cp_removed_tensor",
+                    "axes": ["rx_ant", "symbol", "sample"],
+                    "shape": [int(dim) for dim in cp_removed_tensor.shape],
+                    "description": "Per-receive-antenna OFDM symbols after cyclic-prefix removal.",
+                },
+                "fft_bins_tensor": {
+                    "name": "fft_bins_tensor",
+                    "axes": ["rx_ant", "symbol", "fft_bin"],
+                    "shape": [int(dim) for dim in fft_bins_tensor.shape],
+                    "description": "Per-receive-antenna FFT bins before active-subcarrier extraction.",
+                },
                 "rx_grid_tensor": {
                     "name": "rx_grid_tensor",
                     "axes": ["rx_ant", "symbol", "subcarrier"],
@@ -160,13 +205,21 @@ class NrReceiver:
                     "description": "Per-receive-antenna FFT grid.",
                 }
             },
+            cp_removed_tensor=cp_removed_tensor,
+            fft_bins_tensor=fft_bins_tensor,
             rx_grid_tensor=rx_grid_tensor,
             rx_grid=rx_grid,
+            re_data_positions=positions,
+            re_data_symbols=rx_symbols,
+            re_dmrs_positions=dmrs_positions,
+            re_dmrs_symbols=re_dmrs_symbols,
             rx_symbols=rx_symbols,
             equalized_symbols=equalized,
             channel_estimate=h_full,
             llrs=llrs,
             descrambled_llrs=descrambled_llrs,
+            rate_recovered_llrs=rate_recovered_llrs,
+            decoder_input_llrs=decoder_input_llrs,
             timing_offset=timing_offset,
             cfo_estimate_hz=cfo_estimate_hz,
             kpis=kpis,

@@ -37,6 +37,16 @@ def test_simulate_link_sequence_returns_multiple_slots() -> None:
     assert "input_shape" in result["pipeline"][0]
     assert "output_shape" in result["pipeline"][0]
     assert result["slot_context"]["slot_label"] == "Frame 0 / Slot 0"
+    stage_names = [stage["stage"] for stage in result["pipeline"]]
+    assert "Remove CP" in stage_names
+    assert "Resource element extraction" in stage_names
+    assert "Rate recovery" in stage_names
+    assert "Soft LLR before decoding" in stage_names
+    rx = result["rx"]
+    assert rx.cp_removed_tensor.shape[1] == config["numerology"]["symbols_per_slot"]
+    assert rx.fft_bins_tensor.shape[2] == config["numerology"]["fft_size"]
+    assert rx.re_data_positions.shape[0] == rx.re_data_symbols.shape[0]
+    assert rx.rate_recovered_llrs.shape == rx.decoder_input_llrs.shape
 
 
 def test_phy_pipeline_panel_uses_multislot_scrubber() -> None:
@@ -66,6 +76,8 @@ def test_phy_pipeline_panel_uses_multislot_scrubber() -> None:
     assert "Frame 1 / Slot 1" in panel.stage_title.text()
     assert panel.stages[0]["artifact_type"] == "bits"
     assert "Input shape" in panel.stages[0]["metrics"]
+    stage_keys = {stage["key"] for stage in panel.stages}
+    assert {"remove_cp", "re_extraction", "rate_recovery", "soft_llr"}.issubset(stage_keys)
     panel.deleteLater()
     app.processEvents()
 

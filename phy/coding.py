@@ -59,6 +59,14 @@ def _circular_rate_recover(llrs: np.ndarray, mother_length: int, rv: int) -> np.
     return recovered
 
 
+def rate_recover_llrs(llrs: np.ndarray, metadata: "CodingMetadata") -> np.ndarray:
+    return _circular_rate_recover(
+        llrs=np.asarray(llrs, dtype=np.float64),
+        mother_length=int(metadata.mother_length),
+        rv=int(metadata.redundancy_version),
+    )
+
+
 def _next_power_of_two(value: int) -> int:
     return 1 << max(1, int(np.ceil(np.log2(max(2, value)))))
 
@@ -158,7 +166,7 @@ class NrLdpcInspiredCoder:
         return rate_matched.astype(np.uint8), metadata
 
     def decode(self, llrs: np.ndarray, metadata: CodingMetadata) -> Tuple[np.ndarray, bool]:
-        recovered = _circular_rate_recover(llrs=np.asarray(llrs, dtype=np.float64), mother_length=metadata.mother_length, rv=metadata.redundancy_version)
+        recovered = rate_recover_llrs(llrs, metadata)
         deinterleaved = np.zeros_like(recovered)
         assert metadata.interleaver is not None
         deinterleaved[metadata.interleaver] = recovered
@@ -202,7 +210,7 @@ class PolarLikeControlCoder:
         return rate_matched.astype(np.uint8), metadata
 
     def decode(self, llrs: np.ndarray, metadata: CodingMetadata) -> Tuple[np.ndarray, bool]:
-        recovered = _circular_rate_recover(llrs=np.asarray(llrs, dtype=np.float64), mother_length=metadata.mother_length, rv=metadata.redundancy_version)
+        recovered = rate_recover_llrs(llrs, metadata)
         assert metadata.polar_length is not None
         assert metadata.info_positions is not None
         frozen = np.ones(metadata.polar_length, dtype=bool)

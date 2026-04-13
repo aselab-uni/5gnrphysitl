@@ -900,6 +900,8 @@ class PhyPipelinePanel(QWidget):
         avg_channel = np.mean(np.abs(rx.channel_estimate), axis=0)
         equalizer_gain = 1.0 / np.maximum(avg_channel, 1e-6)
         llr_histogram = self._histogram_payload(rx.llrs)
+        descrambled_llr_histogram = self._histogram_payload(rx.descrambled_llrs)
+        decoder_input_llr_histogram = self._histogram_payload(rx.decoder_input_llrs)
         bit_error_mask = self._bit_error_mask(tx_meta.payload_bits, rx.recovered_bits)
         kpis = rx.kpis.as_dict()
         reference_symbols = tx_meta.tx_symbols
@@ -908,6 +910,7 @@ class PhyPipelinePanel(QWidget):
         mapping_table = self._mapping_table_text(tx_meta.mapper)
         code_rate = tx_meta.payload_bits.size / max(coding_meta.rate_matched_length, 1)
         code_stage = "Polar-like control coder" if tx_meta.channel_type in {"control", "pdcch", "pbch"} else "LDPC-inspired coder"
+        data_re_mask = (allocation_map == 2.0).astype(np.float32)
 
         stages = self._stage_definitions(
             result=result,
@@ -924,6 +927,8 @@ class PhyPipelinePanel(QWidget):
             avg_channel=avg_channel,
             equalizer_gain=equalizer_gain,
             llr_histogram=llr_histogram,
+            descrambled_llr_histogram=descrambled_llr_histogram,
+            decoder_input_llr_histogram=decoder_input_llr_histogram,
             bit_error_mask=bit_error_mask,
             kpis=kpis,
             reference_symbols=reference_symbols,
@@ -933,6 +938,7 @@ class PhyPipelinePanel(QWidget):
             code_rate=code_rate,
             code_stage=code_stage,
             positions=positions,
+            data_re_mask=data_re_mask,
         )
         transfer = result.get("file_transfer")
         if transfer:
@@ -956,6 +962,8 @@ class PhyPipelinePanel(QWidget):
         avg_channel: np.ndarray,
         equalizer_gain: np.ndarray,
         llr_histogram: dict[str, Any],
+        descrambled_llr_histogram: dict[str, Any],
+        decoder_input_llr_histogram: dict[str, Any],
         bit_error_mask: np.ndarray,
         kpis: dict[str, Any],
         reference_symbols: np.ndarray,
@@ -965,6 +973,7 @@ class PhyPipelinePanel(QWidget):
         code_rate: float,
         code_stage: str,
         positions: np.ndarray,
+        data_re_mask: np.ndarray,
     ) -> list[dict[str, Any]]:
         tx = result["tx"]
         rx = result["rx"]
@@ -1164,20 +1173,53 @@ class PhyPipelinePanel(QWidget):
                 ],
             },
             {
+                "key": "remove_cp",
+                "section": "RX",
+                "flow_label": "Remove CP",
+                "title": "Cyclic Prefix Removal",
+                "description": "After synchronization, the cyclic prefix is stripped from each OFDM symbol so that FFT is applied only to the useful symbol interval.",
+                "metrics": {
+                    "CP length": numerology.cp_length,
+                    "Useful FFT samples": numerology.fft_size,
+                    "CP-removed tensor": f"{rx.cp_removed_tensor.shape[0]} x {rx.cp_removed_tensor.shape[1]} x {rx.cp_removed_tensor.shape[2]}",
+                },
+                "artifacts": [
+                    {"name": "CP-removed symbol matrix", "kind": "grid", "payload": {"image": np.abs(rx.cp_removed_tensor[0]), "lookup": "viridis"}, "description": "Magnitude of each CP-removed OFDM symbol before FFT."},
+                    {"name": "Corrected waveform", "kind": "waveform", "payload": {"waveform": corrected_waveform, "symbol_length": numerology.fft_size + numerology.cp_length, "x_label": "Sample", "y_label": "Amplitude"}, "description": "Time-domain waveform from which cyclic prefixes are removed."},
+                ],
+            },
+            {
                 "key": "fft",
                 "section": "RX",
                 "flow_label": "FFT",
-                "title": "FFT / OFDM Demodulation",
-                "description": "The corrected waveform is segmented symbol by symbol, CP is removed, and FFT reconstructs the received grid.",
+                "title": "FFT",
+                "description": "FFT converts each CP-removed OFDM symbol into the frequency domain before active-subcarrier extraction.",
                 "metrics": {
-                    "RX grid shape": f"{rx.rx_grid.shape[0]} x {rx.rx_grid.shape[1]}",
+                    "FFT bins tensor": f"{rx.fft_bins_tensor.shape[0]} x {rx.fft_bins_tensor.shape[1]} x {rx.fft_bins_tensor.shape[2]}",
                     "Symbols / slot": numerology.symbols_per_slot,
-                    "Active subcarriers": numerology.active_subcarriers,
+                    "FFT size": numerology.fft_size,
                     "RX spectrum bins": rx_spectrum["x"].size,
                 },
                 "artifacts": [
-                    {"name": "RX grid magnitude", "kind": "grid", "payload": {"image": np.abs(rx.rx_grid), "lookup": "magma"}, "description": "Magnitude of the received resource grid after FFT."},
+                    {"name": "FFT magnitude", "kind": "grid", "payload": {"image": np.abs(rx.fft_bins_tensor[0]), "lookup": "magma"}, "description": "Magnitude of the full FFT bins before active-subcarrier extraction."},
                     {"name": "RX spectrum", "kind": "spectrum", "payload": rx_spectrum, "description": "Spectrum of the received waveform before equalization."},
+                ],
+            },
+            {
+                "key": "re_extraction",
+                "section": "RX",
+                "flow_label": "RE Extract",
+                "title": "Resource Element Extraction",
+                "description": "Active REs are separated into payload REs and DMRS REs before channel estimation and data detection.",
+                "metrics": {
+                    "Data RE count": rx.re_data_positions.shape[0],
+                    "DMRS RE count": rx.re_dmrs_positions.shape[0],
+                    "RX grid shape": f"{rx.rx_grid.shape[0]} x {rx.rx_grid.shape[1]}",
+                },
+                "artifacts": [
+                    {"name": "Data RE mask", "kind": "grid", "payload": {"image": data_re_mask, "lookup": "plasma", "levels": (0.0, 1.0)}, "description": "Binary mask of extracted payload RE locations."},
+                    {"name": "Extracted data constellation", "kind": "constellation_compare", "payload": {"series": [{"name": "Data RE", "points": rx.re_data_symbols, "color": "#38bdf8", "symbol_indices": rx.re_data_positions[: rx.re_data_symbols.size, 0]}]}, "description": "Payload RE observations extracted from the RX grid before equalization."},
+                    {"name": "Extracted DMRS symbols", "kind": "constellation_compare", "payload": {"series": [{"name": "DMRS RE", "points": rx.re_dmrs_symbols, "color": "#f59e0b", "symbol_indices": rx.re_dmrs_positions[: rx.re_dmrs_symbols.size, 0] if rx.re_dmrs_positions.size else np.array([], dtype=int)}]}, "description": "DMRS observations extracted from the RX grid."},
                 ],
             },
             {
@@ -1232,11 +1274,60 @@ class PhyPipelinePanel(QWidget):
                 ],
             },
             {
+                "key": "descrambling",
+                "section": "RX",
+                "flow_label": "Descramble",
+                "title": "Descrambling",
+                "description": "The demapper output is de-whitened with the same pseudo-random sequence used at the transmitter.",
+                "metrics": {
+                    "Descrambled LLR count": rx.descrambled_llrs.size,
+                    "Mean |LLR|": f"{float(np.mean(np.abs(rx.descrambled_llrs))):.4g}",
+                    "Sequence length": tx_meta.scrambling_sequence.size,
+                },
+                "artifacts": [
+                    {"name": "Descrambled LLR trace", "kind": "line", "payload": {"x": np.arange(min(rx.descrambled_llrs.size, 256)), "y": rx.descrambled_llrs[:256], "x_label": "LLR index", "y_label": "Descrambled LLR"}, "description": "First descrambled LLR values delivered to rate recovery."},
+                    {"name": "Descrambled LLR histogram", "kind": "histogram", "payload": descrambled_llr_histogram, "description": "Histogram of descrambled soft decisions."},
+                ],
+            },
+            {
+                "key": "rate_recovery",
+                "section": "RX",
+                "flow_label": "Rate Recover",
+                "title": "Rate Recovery",
+                "description": "Rate recovery expands the descrambled LLR stream back onto the mother-codeword domain before decoding.",
+                "metrics": {
+                    "Rate-matched length": coding_meta.rate_matched_length,
+                    "Mother length": coding_meta.mother_length,
+                    "Redundancy version": coding_meta.redundancy_version,
+                    "Recovered LLR count": rx.rate_recovered_llrs.size,
+                },
+                "artifacts": [
+                    {"name": "Rate-recovered LLR trace", "kind": "line", "payload": {"x": np.arange(min(rx.rate_recovered_llrs.size, 256)), "y": rx.rate_recovered_llrs[:256], "x_label": "Mother-code index", "y_label": "Recovered LLR"}, "description": "LLRs after inverse rate matching."},
+                ],
+            },
+            {
+                "key": "soft_llr",
+                "section": "RX",
+                "flow_label": "Soft LLR",
+                "title": "Soft LLR Before Decoding",
+                "description": "This is the decoder input after descrambling and rate recovery. It is the soft-information interface between front-end detection and channel decoding.",
+                "metrics": {
+                    "Decoder-input LLR count": rx.decoder_input_llrs.size,
+                    "Mean |LLR|": f"{float(np.mean(np.abs(rx.decoder_input_llrs))):.4g}",
+                    "Min LLR": f"{float(np.min(rx.decoder_input_llrs)):.4g}",
+                    "Max LLR": f"{float(np.max(rx.decoder_input_llrs)):.4g}",
+                },
+                "artifacts": [
+                    {"name": "Decoder-input LLR trace", "kind": "line", "payload": {"x": np.arange(min(rx.decoder_input_llrs.size, 256)), "y": rx.decoder_input_llrs[:256], "x_label": "Decoder input index", "y_label": "LLR"}, "description": "Soft LLR sequence consumed by the channel decoder."},
+                    {"name": "Decoder-input LLR histogram", "kind": "histogram", "payload": decoder_input_llr_histogram, "description": "Histogram of the decoder-input soft LLRs."},
+                ],
+            },
+            {
                 "key": "decoding",
                 "section": "RX",
                 "flow_label": "Decode",
                 "title": "Decoding",
-                "description": "The channel decoder reconstructs the protected payload bits from the descrambled LLR stream.",
+                "description": "The channel decoder reconstructs the protected payload bits from the rate-recovered decoder-input LLR stream.",
                 "metrics": {
                     "Recovered bits": rx.recovered_bits.size,
                     "Bit errors": int(np.sum(bit_error_mask)),
