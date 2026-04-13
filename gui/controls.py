@@ -80,7 +80,7 @@ class ControlPanel(QWidget):
         form.setHorizontalSpacing(8)
         form.setVerticalSpacing(6)
 
-        self.widgets["mode"] = self._combo(["data", "control", "prach", "compare"])
+        self.widgets["mode"] = self._combo(["data", "control", "pbch", "prach", "compare"])
         self.widgets["direction"] = self._combo(["downlink", "uplink"])
         self.widgets["modulation"] = self._combo(["QPSK", "16QAM", "64QAM", "256QAM"])
         self.widgets["mcs"] = self._spin(0, 27, 9)

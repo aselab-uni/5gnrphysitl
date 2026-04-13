@@ -46,6 +46,14 @@ def validate_config(config: dict) -> dict:
         raise ValueError("frame.prach_subcarriers must be at least 12.")
     if int(frame.get("rs_comb", 1)) < 1:
         raise ValueError("frame.rs_comb must be at least 1.")
+    if int(frame.get("ptrs_subcarrier_offset", 0)) < 0:
+        raise ValueError("frame.ptrs_subcarrier_offset must be non-negative.")
+    if int(frame.get("ssb_symbol_count", 1)) < 1:
+        raise ValueError("frame.ssb_symbol_count must be at least 1.")
+    if int(frame.get("ssb_subcarriers", 12)) < 12:
+        raise ValueError("frame.ssb_subcarriers must be at least 12.")
+    if int(frame.get("pbch_dmrs_subcarrier_offset", 0)) < 0:
+        raise ValueError("frame.pbch_dmrs_subcarrier_offset must be non-negative.")
     if int(frame.get("coreset_symbol_count", 1)) < 1:
         raise ValueError("frame.coreset_symbol_count must be at least 1.")
     if int(frame.get("coreset_subcarriers", 12)) < 12:

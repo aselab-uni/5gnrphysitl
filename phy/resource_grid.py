@@ -141,10 +141,91 @@ class ResourceGrid:
             offset=int(self.allocation.srs_subcarrier_offset),
         )
 
+    def ptrs_positions(self, *, direction: str = "downlink", channel_type: str = "data") -> np.ndarray:
+        direction = str(direction).lower()
+        channel_type = str(channel_type).lower()
+        if direction == "uplink":
+            if channel_type not in {"data", "pusch"}:
+                return np.zeros((0, 2), dtype=int)
+            allowed_symbols = set(self.allocation.pusch_symbols(self.numerology))
+        else:
+            if channel_type not in {"data", "pdsch"}:
+                return np.zeros((0, 2), dtype=int)
+            allowed_symbols = set(self.allocation.pdsch_symbols(self.numerology))
+        positions = comb_positions(
+            self.numerology.active_subcarriers,
+            symbols=[symbol for symbol in self.allocation.ptrs_symbols if symbol in allowed_symbols],
+            comb=int(self.allocation.rs_comb),
+            offset=int(self.allocation.ptrs_subcarrier_offset),
+        )
+        if not positions.size:
+            return positions
+        reserved = {tuple(position) for position in self.dmrs_positions().tolist()}
+        if direction == "downlink":
+            reserved.update(tuple(position) for position in self.csi_rs_positions().tolist())
+        else:
+            reserved.update(tuple(position) for position in self.srs_positions().tolist())
+        filtered = [tuple(position) for position in positions.tolist() if tuple(position) not in reserved]
+        return np.asarray(filtered, dtype=int) if filtered else np.zeros((0, 2), dtype=int)
+
+    def ssb_positions(self) -> np.ndarray:
+        positions = []
+        ssb_subcarriers = min(self.allocation.ssb_subcarriers, self.numerology.active_subcarriers)
+        for symbol in self.allocation.ssb_symbols:
+            if not (0 <= symbol < self.numerology.symbols_per_slot):
+                continue
+            for sc in range(ssb_subcarriers):
+                positions.append((symbol, sc))
+        return np.asarray(positions, dtype=int) if positions else np.zeros((0, 2), dtype=int)
+
+    def pss_positions(self) -> np.ndarray:
+        symbols = self.allocation.ssb_symbols
+        if not symbols:
+            return np.zeros((0, 2), dtype=int)
+        return np.asarray([(symbols[0], sc) for sc in range(min(self.allocation.ssb_subcarriers, self.numerology.active_subcarriers))], dtype=int)
+
+    def sss_positions(self) -> np.ndarray:
+        symbols = self.allocation.ssb_symbols
+        if len(symbols) < 3:
+            return np.zeros((0, 2), dtype=int)
+        symbol = symbols[min(2, len(symbols) - 1)]
+        return np.asarray([(symbol, sc) for sc in range(min(self.allocation.ssb_subcarriers, self.numerology.active_subcarriers))], dtype=int)
+
+    def pbch_dmrs_positions(self) -> np.ndarray:
+        symbols = self.allocation.ssb_symbols
+        if len(symbols) < 2:
+            return np.zeros((0, 2), dtype=int)
+        pbch_dmrs_symbols = [symbols[1]]
+        if len(symbols) >= 4:
+            pbch_dmrs_symbols.append(symbols[3])
+        return comb_positions(
+            min(self.allocation.ssb_subcarriers, self.numerology.active_subcarriers),
+            symbols=pbch_dmrs_symbols,
+            comb=4,
+            offset=int(self.allocation.pbch_dmrs_subcarrier_offset),
+        )
+
+    def pbch_positions(self) -> np.ndarray:
+        symbols = self.allocation.ssb_symbols
+        if len(symbols) < 2:
+            return np.zeros((0, 2), dtype=int)
+        pbch_symbols = [symbols[1]]
+        if len(symbols) >= 4:
+            pbch_symbols.append(symbols[3])
+        pbch_positions = []
+        reserved = {tuple(position) for position in self.pbch_dmrs_positions().tolist()}
+        ssb_subcarriers = min(self.allocation.ssb_subcarriers, self.numerology.active_subcarriers)
+        for symbol in pbch_symbols:
+            for sc in range(ssb_subcarriers):
+                if (symbol, sc) not in reserved:
+                    pbch_positions.append((symbol, sc))
+        return np.asarray(pbch_positions, dtype=int) if pbch_positions else np.zeros((0, 2), dtype=int)
+
     def pdsch_positions(self) -> np.ndarray:
         positions = []
         reserved = {tuple(position) for position in self.dmrs_positions().tolist()}
         reserved.update(tuple(position) for position in self.csi_rs_positions().tolist())
+        reserved.update(tuple(position) for position in self.ptrs_positions(direction="downlink", channel_type="data").tolist())
         for symbol in self.allocation.pdsch_symbols(self.numerology):
             for sc in range(self.numerology.active_subcarriers):
                 if (symbol, sc) not in reserved:
@@ -155,6 +236,7 @@ class ResourceGrid:
         positions = []
         reserved = {tuple(position) for position in self.dmrs_positions().tolist()}
         reserved.update(tuple(position) for position in self.srs_positions().tolist())
+        reserved.update(tuple(position) for position in self.ptrs_positions(direction="uplink", channel_type="data").tolist())
         for symbol in self.allocation.pusch_symbols(self.numerology):
             for sc in range(self.numerology.active_subcarriers):
                 if (symbol, sc) not in reserved:
@@ -221,6 +303,8 @@ class ResourceGrid:
             "prach": self.prach_re_mask(),
             "csi_rs": self.csi_rs_re_mask(),
             "srs": self.srs_re_mask(),
+            "ptrs": self.ptrs_re_mask(direction=direction),
+            "ssb": self.ssb_re_mask(),
         }
 
     def prach_re_mask(self) -> np.ndarray:
@@ -238,6 +322,8 @@ class ResourceGrid:
                 positions = self.prach_positions()
             else:
                 positions = self.pucch_positions() if channel_type in {"control", "pucch"} else self.pusch_positions()
+        elif channel_type in {"pbch", "broadcast"}:
+            positions = self.pbch_positions()
         elif channel_type in {"control", "pdcch"}:
             positions = self.pdcch_positions()
         else:
@@ -258,6 +344,20 @@ class ResourceGrid:
     def srs_re_mask(self) -> np.ndarray:
         mask = np.zeros(self.shape, dtype=np.uint8)
         positions = self.srs_positions()
+        if positions.size:
+            mask[positions[:, 0], positions[:, 1]] = 1
+        return mask
+
+    def ptrs_re_mask(self, *, direction: str = "downlink", channel_type: str = "data") -> np.ndarray:
+        mask = np.zeros(self.shape, dtype=np.uint8)
+        positions = self.ptrs_positions(direction=direction, channel_type=channel_type)
+        if positions.size:
+            mask[positions[:, 0], positions[:, 1]] = 1
+        return mask
+
+    def ssb_re_mask(self) -> np.ndarray:
+        mask = np.zeros(self.shape, dtype=np.uint8)
+        positions = self.ssb_positions()
         if positions.size:
             mask[positions[:, 0], positions[:, 1]] = 1
         return mask
@@ -339,6 +439,82 @@ class ResourceGrid:
         return {
             "positions": positions.copy(),
             "symbols": np.concatenate(symbols) if symbols else np.array([], dtype=np.complex128),
+            "port": int(port),
+        }
+
+    def insert_ptrs(
+        self,
+        slot: int = 0,
+        *,
+        port: int = 0,
+        seed: int = 73,
+        direction: str = "downlink",
+        channel_type: str = "data",
+    ) -> Dict[str, np.ndarray]:
+        positions = self.ptrs_positions(direction=direction, channel_type=channel_type)
+        if not positions.size:
+            return {"positions": np.zeros((0, 2), dtype=int), "symbols": np.array([], dtype=np.complex128), "port": int(port)}
+        port_view = self.port_view(port)
+        symbols = []
+        for symbol in sorted({int(value) for value in positions[:, 0].tolist()}):
+            symbol_mask = positions[:, 0] == symbol
+            symbol_positions = positions[symbol_mask]
+            sequence = qpsk_reference_sequence(symbol_positions.shape[0], slot=slot, symbol=symbol, seed=int(seed) + 2000)
+            port_view[symbol_positions[:, 0], symbol_positions[:, 1]] = sequence
+            symbols.append(sequence)
+        return {
+            "positions": positions.copy(),
+            "symbols": np.concatenate(symbols) if symbols else np.array([], dtype=np.complex128),
+            "port": int(port),
+        }
+
+    def insert_ssb(self, slot: int = 0, *, port: int = 0, seed: int = 73) -> Dict[str, np.ndarray]:
+        port_view = self.port_view(port)
+        pss_positions = self.pss_positions()
+        sss_positions = self.sss_positions()
+        pbch_dmrs_positions = self.pbch_dmrs_positions()
+        if not (pss_positions.size or sss_positions.size or pbch_dmrs_positions.size):
+            return {
+                "positions": np.zeros((0, 2), dtype=int),
+                "symbols": np.array([], dtype=np.complex128),
+                "pss_positions": np.zeros((0, 2), dtype=int),
+                "sss_positions": np.zeros((0, 2), dtype=int),
+                "pbch_dmrs_positions": np.zeros((0, 2), dtype=int),
+                "pbch_dmrs_symbols": np.array([], dtype=np.complex128),
+                "port": int(port),
+            }
+
+        def _bpsk(length: int, seed_offset: int) -> np.ndarray:
+            qpsk = qpsk_reference_sequence(length, slot=slot, symbol=seed_offset, seed=int(seed) + seed_offset)
+            return np.sign(np.real(qpsk)).astype(np.float64).astype(np.complex128)
+
+        pss_symbols = _bpsk(pss_positions.shape[0], 3000) if pss_positions.size else np.array([], dtype=np.complex128)
+        sss_symbols = _bpsk(sss_positions.shape[0], 4000) if sss_positions.size else np.array([], dtype=np.complex128)
+        pbch_dmrs_symbols = (
+            qpsk_reference_sequence(pbch_dmrs_positions.shape[0], slot=slot, symbol=5000, seed=int(seed) + 5000)
+            if pbch_dmrs_positions.size
+            else np.array([], dtype=np.complex128)
+        )
+        if pss_positions.size:
+            port_view[pss_positions[:, 0], pss_positions[:, 1]] = pss_symbols
+        if sss_positions.size:
+            port_view[sss_positions[:, 0], sss_positions[:, 1]] = sss_symbols
+        if pbch_dmrs_positions.size:
+            port_view[pbch_dmrs_positions[:, 0], pbch_dmrs_positions[:, 1]] = pbch_dmrs_symbols
+        all_positions = np.concatenate(
+            [array for array in (pss_positions, sss_positions, pbch_dmrs_positions) if array.size],
+            axis=0,
+        )
+        all_symbols = np.concatenate(
+            [array for array in (pss_symbols, sss_symbols, pbch_dmrs_symbols) if array.size]
+        )
+        return {
+            "positions": all_positions,
+            "symbols": all_symbols,
+            "pss_positions": pss_positions.copy(),
+            "sss_positions": sss_positions.copy(),
+            "pbch_dmrs_positions": pbch_dmrs_positions.copy(),
+            "pbch_dmrs_symbols": pbch_dmrs_symbols.copy(),
             "port": int(port),
         }
 

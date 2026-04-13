@@ -18,9 +18,15 @@ class FrameAllocation:
     prach_subcarriers: int
     csi_rs_symbols: List[int]
     srs_symbols: List[int]
+    ptrs_symbols: List[int]
     rs_comb: int
     csi_rs_subcarrier_offset: int
     srs_subcarrier_offset: int
+    ptrs_subcarrier_offset: int
+    ssb_start_symbol: int
+    ssb_symbol_count: int
+    ssb_subcarriers: int
+    pbch_dmrs_subcarrier_offset: int
     coreset_start_symbol: int
     coreset_symbol_count: int
     coreset_subcarriers: int
@@ -33,6 +39,12 @@ class FrameAllocation:
     def pdcch_symbols(self) -> List[int]:
         start = max(0, int(self.coreset_start_symbol))
         count = max(1, int(self.coreset_symbol_count))
+        return list(range(start, start + count))
+
+    @property
+    def ssb_symbols(self) -> List[int]:
+        start = max(0, int(self.ssb_start_symbol))
+        count = max(1, int(self.ssb_symbol_count))
         return list(range(start, start + count))
 
     def pdsch_symbols(self, numerology: NumerologyConfig) -> List[int]:
@@ -77,9 +89,15 @@ def build_default_allocation(numerology: NumerologyConfig, config: dict) -> Fram
     prach_symbol_count = int(frame_cfg.get("prach_symbol_count", 1))
     csi_rs_symbols = list(frame_cfg.get("csi_rs_symbols", [12])) if bool(reference_cfg.get("enable_csi_rs", True)) else []
     srs_symbols = list(frame_cfg.get("srs_symbols", [13])) if bool(reference_cfg.get("enable_srs", True)) else []
+    ptrs_symbols = list(frame_cfg.get("ptrs_symbols", [6])) if bool(reference_cfg.get("enable_ptrs", True)) else []
     rs_comb = int(frame_cfg.get("rs_comb", 4))
     csi_rs_subcarrier_offset = int(frame_cfg.get("csi_rs_subcarrier_offset", 1))
     srs_subcarrier_offset = int(frame_cfg.get("srs_subcarrier_offset", 2))
+    ptrs_subcarrier_offset = int(frame_cfg.get("ptrs_subcarrier_offset", 3))
+    ssb_start_symbol = int(frame_cfg.get("ssb_start_symbol", 0))
+    ssb_symbol_count = int(frame_cfg.get("ssb_symbol_count", 4))
+    ssb_subcarriers = int(frame_cfg.get("ssb_subcarriers", min(240, numerology.active_subcarriers)))
+    pbch_dmrs_subcarrier_offset = int(frame_cfg.get("pbch_dmrs_subcarrier_offset", 1))
     control_subcarriers = int(
         frame_cfg.get("control_subcarriers", min(72, numerology.active_subcarriers))
     )
@@ -101,9 +119,21 @@ def build_default_allocation(numerology: NumerologyConfig, config: dict) -> Fram
         prach_subcarriers=max(12, min(prach_subcarriers, numerology.active_subcarriers)),
         csi_rs_symbols=[symbol for symbol in csi_rs_symbols if 0 <= symbol < numerology.symbols_per_slot],
         srs_symbols=[symbol for symbol in srs_symbols if 0 <= symbol < numerology.symbols_per_slot],
+        ptrs_symbols=[symbol for symbol in ptrs_symbols if 0 <= symbol < numerology.symbols_per_slot],
         rs_comb=max(1, rs_comb),
         csi_rs_subcarrier_offset=max(0, csi_rs_subcarrier_offset),
         srs_subcarrier_offset=max(0, srs_subcarrier_offset),
+        ptrs_subcarrier_offset=max(0, ptrs_subcarrier_offset),
+        ssb_start_symbol=max(0, min(ssb_start_symbol, numerology.symbols_per_slot - 1)),
+        ssb_symbol_count=max(
+            1,
+            min(
+                ssb_symbol_count,
+                numerology.symbols_per_slot - max(0, min(ssb_start_symbol, numerology.symbols_per_slot - 1)),
+            ),
+        ),
+        ssb_subcarriers=max(12, min(ssb_subcarriers, numerology.active_subcarriers)),
+        pbch_dmrs_subcarrier_offset=max(0, pbch_dmrs_subcarrier_offset),
         coreset_start_symbol=max(0, min(coreset_start_symbol, numerology.symbols_per_slot - 1)),
         coreset_symbol_count=max(
             1,

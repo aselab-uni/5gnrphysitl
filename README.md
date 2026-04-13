@@ -1504,10 +1504,17 @@ Ready-made uplink PRACH baseline scenario:
 python main.py --config configs/default.yaml --override configs/scenario_uplink_prach_baseline.yaml --gui
 ```
 
+Ready-made PBCH baseline scenario:
+
+```bash
+python main.py --config configs/default.yaml --override configs/scenario_pbch_baseline.yaml --gui
+```
+
 Reference-signal baseline:
 
 - `CSI-RS` is inserted on downlink data/control runs and exposed in the grid and extraction stages.
 - `SRS` is inserted on uplink data runs and exposed in the grid and extraction stages.
+- `PT-RS` is inserted on scheduled downlink/uplink data runs and exposed in the grid and extraction stages.
 - `DMRS` remains the primary estimator input in the current receiver.
 
 Downlink control realism baseline:
@@ -1515,6 +1522,7 @@ Downlink control realism baseline:
 - `PDCCH` now maps inside a configurable `CORESET`.
 - `SearchSpace` is modeled as a monitored subset of CORESET REs using a configurable stride/offset baseline.
 - The `PHY Pipeline` exposes `CORESET / SearchSpace Selection` as an explicit stage for downlink control runs.
+- `PBCH` now maps inside a dedicated `SSB` region with reserved `PSS`, `SSS`, and `PBCH-DMRS` occupancy.
 
 ### Launch GUI
 
@@ -1624,7 +1632,8 @@ python main.py --config configs/default.yaml --override configs/scenario_vehicul
 - Control-channel coding is polar-like and small-block focused, not full NR polar coding.
 - Resource allocation is slot-local and simplified; there is no full scheduler/DCI implementation.
 - Uplink support currently covers a `data` / `PUSCH-style` baseline, a minimal `control` / `PUCCH-style` baseline, and a `PRACH` preamble-detection baseline.
-- `CSI-RS` and `SRS` are baseline observability/reference-signal features, not full `38.211/38.214` procedure implementations.
+- `PBCH` is a baseline SSB/PBCH broadcast path, not a full `38.211` synchronization-burst implementation.
+- `CSI-RS`, `SRS`, and `PT-RS` are baseline observability/reference-signal features, not full `38.211/38.214` procedure implementations.
 - `CORESET / SearchSpace` support is a baseline control-region model, not a full `38.213` candidate-monitoring implementation.
 - DMRS patterns are NR-inspired but simplified.
 - Synchronization and CFO recovery are intentionally lightweight.

@@ -43,7 +43,7 @@ def _reference_channel_grid(tx_metadata, frequency_response: np.ndarray) -> np.n
 def _payload_size_bits_for_channel(config: Dict, channel_type: str) -> int:
     if channel_type.lower() == "prach":
         return int(config.get("prach", {}).get("preamble_id_bits", 6))
-    if channel_type.lower() in {"control", "pdcch", "pucch"}:
+    if channel_type.lower() in {"control", "pdcch", "pucch", "pbch"}:
         return int(config.get("control_channel", {}).get("payload_bits", 128))
     return int(config.get("transport_block", {}).get("size_bits", 1024))
 
@@ -214,7 +214,12 @@ def _build_pipeline_trace(
     if direction == "uplink":
         mapping_label = "PUCCH-style" if tx_meta.channel_type in {"control", "pucch"} else "PUSCH-style"
     else:
-        mapping_label = "PDCCH/CORESET-style" if tx_meta.channel_type in {"control", "pdcch"} else "PDSCH-style"
+        if tx_meta.channel_type in {"control", "pdcch"}:
+            mapping_label = "PDCCH/CORESET-style"
+        elif tx_meta.channel_type in {"pbch", "broadcast"}:
+            mapping_label = "SSB/PBCH-style"
+        else:
+            mapping_label = "PDSCH-style"
     coding_meta = tx_meta.coding_metadata
     transport_with_crc = (
         np.asarray(coding_meta.transport_block_with_crc, dtype=np.uint8)
@@ -332,9 +337,13 @@ def _build_pipeline_trace(
         },
         {
             "section": "TX",
-            "stage": "DMRS insertion",
+            "stage": "DMRS insertion" if tx_meta.channel_type not in {"pbch", "broadcast"} else "PBCH-DMRS / SSB insertion",
             "domain": "grid",
-            "description": "Resource grid after DMRS insertion on configured OFDM symbols.",
+            "description": (
+                "Resource grid after DMRS insertion on configured OFDM symbols."
+                if tx_meta.channel_type not in {"pbch", "broadcast"}
+                else "Resource grid after PBCH-DMRS, PSS, and SSS insertion inside the SSB broadcast region."
+            ),
             "preview_kind": "grid",
             "data": tx_meta.tx_grid,
             "artifact_type": "grid",
@@ -541,6 +550,27 @@ def _build_pipeline_trace(
                 ),
             },
         )
+    if direction == "downlink" and tx_meta.channel_type in {"pbch", "broadcast"}:
+        helper = ResourceGrid(tx_meta.numerology, tx_meta.allocation, spatial_layout=tx_meta.spatial_layout)
+        ssb_mask = helper.ssb_re_mask().astype(np.float32)
+        stages.insert(
+            6,
+            {
+                "section": "TX",
+                "stage": "SSB / PBCH broadcast layout",
+                "domain": "grid",
+                "description": "PBCH payload is constrained to the dedicated SSB broadcast region, with reserved PSS, SSS, and PBCH-DMRS resources.",
+                "preview_kind": "grid",
+                "data": ssb_mask,
+                "artifact_type": "grid",
+                "input_shape": [int(dim) for dim in np.asarray(tx_meta.scrambled_bits).shape],
+                "output_shape": [int(dim) for dim in np.asarray(ssb_mask).shape],
+                "notes": (
+                    f"SSB RE count: {int(np.sum(ssb_mask))} | "
+                    f"PBCH payload RE count: {int(tx_meta.mapping.positions.shape[0])}"
+                ),
+            },
+        )
 
     if bool(getattr(tx_meta, "transform_precoding_enabled", False)):
         stages.insert(
@@ -576,7 +606,7 @@ def _build_pipeline_trace(
         )
 
     if np.asarray(tx_meta.csi_rs["positions"]).size:
-        dmrs_stage_index = next(index for index, stage in enumerate(stages) if stage["stage"] == "DMRS insertion")
+        dmrs_stage_index = next(index for index, stage in enumerate(stages) if "DMRS" in stage["stage"])
         stages.insert(
             dmrs_stage_index + 1,
             {
@@ -592,8 +622,25 @@ def _build_pipeline_trace(
                 "notes": f"CSI-RS RE count: {int(np.asarray(tx_meta.csi_rs['positions']).shape[0])}",
             },
         )
+    if np.asarray(tx_meta.ptrs["positions"]).size:
+        dmrs_stage_index = next(index for index, stage in enumerate(stages) if "DMRS" in stage["stage"])
+        stages.insert(
+            dmrs_stage_index + 1,
+            {
+                "section": "TX",
+                "stage": "PT-RS insertion",
+                "domain": "grid",
+                "description": "PT-RS baseline is inserted on scheduled data REs to expose phase-tracking reference occupancy on the transmit grid.",
+                "preview_kind": "grid",
+                "data": tx_meta.tx_grid,
+                "artifact_type": "grid",
+                "input_shape": [int(dim) for dim in np.asarray(tx_meta.tx_grid_data).shape],
+                "output_shape": [int(dim) for dim in np.asarray(tx_meta.tx_grid).shape],
+                "notes": f"PT-RS RE count: {int(np.asarray(tx_meta.ptrs['positions']).shape[0])}",
+            },
+        )
     if np.asarray(tx_meta.srs["positions"]).size:
-        dmrs_stage_index = next(index for index, stage in enumerate(stages) if stage["stage"] == "DMRS insertion")
+        dmrs_stage_index = next(index for index, stage in enumerate(stages) if "DMRS" in stage["stage"])
         stages.insert(
             dmrs_stage_index + 1,
             {
@@ -623,6 +670,22 @@ def _build_pipeline_trace(
                 "artifact_type": "constellation",
                 "input_shape": [int(dim) for dim in np.asarray(rx_meta.rx_grid).shape],
                 "output_shape": [int(dim) for dim in np.asarray(rx_meta.re_csi_rs_symbols).shape],
+            },
+        )
+    if np.asarray(rx_meta.re_ptrs_positions).size:
+        extraction_index = next(index for index, stage in enumerate(stages) if stage["stage"] == "Resource element extraction")
+        stages.insert(
+            extraction_index + 1,
+            {
+                "section": "RX",
+                "stage": "PT-RS extraction",
+                "domain": "symbols",
+                "description": "PT-RS observations extracted from the received grid for phase-tracking observability and future common-phase-error studies.",
+                "preview_kind": "constellation",
+                "data": rx_meta.re_ptrs_symbols,
+                "artifact_type": "constellation",
+                "input_shape": [int(dim) for dim in np.asarray(rx_meta.rx_grid).shape],
+                "output_shape": [int(dim) for dim in np.asarray(rx_meta.re_ptrs_symbols).shape],
             },
         )
     if np.asarray(rx_meta.re_srs_positions).size:
@@ -968,8 +1031,8 @@ def simulate_file_transfer(
 ) -> Dict:
     config = deepcopy(config)
     active_channel_type = channel_type or config.get("link", {}).get("channel_type", "data")
-    if str(active_channel_type).lower() == "prach":
-        raise ValueError("File transfer is not supported over the PRACH baseline.")
+    if str(active_channel_type).lower() in {"prach", "pbch", "broadcast"}:
+        raise ValueError("File transfer is not supported over the PRACH/PBCH baseline.")
     package = build_file_payload_package(source_path)
     payload_bits_per_chunk = _payload_size_bits_for_channel(config, active_channel_type)
     chunks = chunk_bitstream(package.package_bits, payload_bits_per_chunk)

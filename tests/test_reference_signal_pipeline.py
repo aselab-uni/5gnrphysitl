@@ -24,11 +24,15 @@ def test_downlink_baseline_exposes_csi_rs() -> None:
     result = simulate_link_sequence(config)
 
     assert result["tx"].metadata.csi_rs["positions"].shape[0] > 0
+    assert result["tx"].metadata.ptrs["positions"].shape[0] > 0
     assert result["tx"].metadata.srs["positions"].shape[0] == 0
     assert result["rx"].re_csi_rs_symbols.size == result["tx"].metadata.csi_rs["symbols"].size
+    assert result["rx"].re_ptrs_symbols.size == result["tx"].metadata.ptrs["symbols"].size
     stage_names = [stage["stage"] for stage in result["pipeline"]]
     assert "CSI-RS insertion" in stage_names
     assert "CSI-RS extraction" in stage_names
+    assert "PT-RS insertion" in stage_names
+    assert "PT-RS extraction" in stage_names
 
 
 def test_uplink_baseline_exposes_srs() -> None:
@@ -41,8 +45,12 @@ def test_uplink_baseline_exposes_srs() -> None:
     result = simulate_link_sequence(config)
 
     assert result["tx"].metadata.srs["positions"].shape[0] > 0
+    assert result["tx"].metadata.ptrs["positions"].shape[0] > 0
     assert result["tx"].metadata.csi_rs["positions"].shape[0] == 0
     assert result["rx"].re_srs_symbols.size == result["tx"].metadata.srs["symbols"].size
+    assert result["rx"].re_ptrs_symbols.size == result["tx"].metadata.ptrs["symbols"].size
     stage_names = [stage["stage"] for stage in result["pipeline"]]
     assert "SRS insertion" in stage_names
     assert "SRS extraction" in stage_names
+    assert "PT-RS insertion" in stage_names
+    assert "PT-RS extraction" in stage_names

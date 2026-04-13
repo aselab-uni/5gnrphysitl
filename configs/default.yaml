@@ -48,9 +48,15 @@ frame:
   search_space_offset: 0
   csi_rs_symbols: [12]
   srs_symbols: [13]
+  ptrs_symbols: [6]
   rs_comb: 4
   csi_rs_subcarrier_offset: 1
   srs_subcarrier_offset: 2
+  ptrs_subcarrier_offset: 3
+  ssb_start_symbol: 0
+  ssb_symbol_count: 4
+  ssb_subcarriers: 240
+  pbch_dmrs_subcarrier_offset: 1
   control_subcarriers: 72
   prach_subcarriers: 72
   dmrs_symbols: [3, 10]
@@ -73,6 +79,7 @@ prach:
 reference_signals:
   enable_csi_rs: true
   enable_srs: true
+  enable_ptrs: true
   sequence_seed: 73
 
 coding:

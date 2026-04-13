@@ -1,0 +1,12 @@
+link:
+  direction: downlink
+  channel_type: pbch
+
+channel:
+  model: awgn
+  profile: static_near
+  snr_db: 28.0
+
+receiver:
+  perfect_sync: true
+  perfect_channel_estimation: true

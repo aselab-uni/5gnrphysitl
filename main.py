@@ -16,7 +16,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--override", type=str, nargs="*", default=[], help="Additional YAML files merged on top of the base config.")
     parser.add_argument("--gui", action="store_true", help="Launch the Qt GUI dashboard.")
     parser.add_argument("--direction", type=str, default=None, choices=["downlink", "uplink"], help="Override link direction.")
-    parser.add_argument("--channel-type", type=str, default=None, choices=["data", "control", "prach"], help="Override data/control/PRACH channel mode.")
+    parser.add_argument("--channel-type", type=str, default=None, choices=["data", "control", "prach", "pbch"], help="Override data/control/PRACH/PBCH channel mode.")
     parser.add_argument("--tx-file", type=str, default=None, help="Optional TX-side file path. The file is packetized, transmitted over the PHY chain, and reconstructed at RX.")
     parser.add_argument("--rx-output-dir", type=str, default=None, help="Optional RX-side output directory for reconstructed files.")
     parser.add_argument("--log-level", type=str, default="INFO", help="Python logging level.")
@@ -45,6 +45,9 @@ def main() -> int:
     if args.direction is not None:
         config.setdefault("link", {})
         config["link"]["direction"] = args.direction
+    if args.channel_type is not None:
+        config.setdefault("link", {})
+        config["link"]["channel_type"] = args.channel_type
     if args.tx_file is not None or args.rx_output_dir is not None:
         config.setdefault("payload_io", {})
         if args.tx_file is not None:

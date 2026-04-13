@@ -44,6 +44,12 @@ class RxResult:
     re_csi_rs_symbols: np.ndarray
     re_srs_positions: np.ndarray
     re_srs_symbols: np.ndarray
+    re_ptrs_positions: np.ndarray
+    re_ptrs_symbols: np.ndarray
+    re_ssb_positions: np.ndarray
+    re_ssb_symbols: np.ndarray
+    re_pbch_dmrs_positions: np.ndarray
+    re_pbch_dmrs_symbols: np.ndarray
     rx_symbols: np.ndarray
     equalized_symbols: np.ndarray
     detected_symbols: np.ndarray
@@ -217,6 +223,12 @@ class NrReceiver:
             re_csi_rs_symbols=np.array([], dtype=np.complex128),
             re_srs_positions=np.zeros((0, 2), dtype=int),
             re_srs_symbols=np.array([], dtype=np.complex128),
+            re_ptrs_positions=np.zeros((0, 2), dtype=int),
+            re_ptrs_symbols=np.array([], dtype=np.complex128),
+            re_ssb_positions=np.zeros((0, 2), dtype=int),
+            re_ssb_symbols=np.array([], dtype=np.complex128),
+            re_pbch_dmrs_positions=np.zeros((0, 2), dtype=int),
+            re_pbch_dmrs_symbols=np.array([], dtype=np.complex128),
             rx_symbols=rx_symbols,
             equalized_symbols=equalized,
             detected_symbols=equalized.copy(),
@@ -280,14 +292,20 @@ class NrReceiver:
                 cfo_estimate_hz=cfo_estimate_hz,
             )
 
+        effective_dmrs_positions = np.asarray(tx_metadata.dmrs["positions"], dtype=int)
+        effective_dmrs_symbols = np.asarray(tx_metadata.dmrs["symbols"], dtype=np.complex128)
+        if str(tx_metadata.channel_type).lower() in {"pbch", "broadcast"} and not effective_dmrs_positions.size:
+            effective_dmrs_positions = np.asarray(tx_metadata.ssb.get("pbch_dmrs_positions", np.zeros((0, 2), dtype=int)), dtype=int)
+            effective_dmrs_symbols = np.asarray(tx_metadata.ssb.get("pbch_dmrs_symbols", np.array([], dtype=np.complex128)), dtype=np.complex128)
+
         if bool(receiver_cfg.get("perfect_channel_estimation", False)) and "reference_channel_grid" in channel_state:
             h_full = np.asarray(channel_state["reference_channel_grid"], dtype=np.complex128)
             channel_est_mse = 0.0
         else:
             estimate = ls_estimate_from_dmrs(
                 rx_grid=rx_grid,
-                dmrs_positions=tx_metadata.dmrs["positions"],
-                dmrs_symbols=tx_metadata.dmrs["symbols"],
+                dmrs_positions=effective_dmrs_positions,
+                dmrs_symbols=effective_dmrs_symbols,
             )
             h_full = estimate["h_full"]
             reference = np.asarray(channel_state.get("reference_channel_grid", h_full), dtype=np.complex128)
@@ -295,7 +313,7 @@ class NrReceiver:
 
         positions = tx_metadata.mapping.positions
         rx_symbols = rx_grid[positions[:, 0], positions[:, 1]]
-        dmrs_positions = np.asarray(tx_metadata.dmrs["positions"], dtype=int)
+        dmrs_positions = effective_dmrs_positions
         re_dmrs_symbols = (
             rx_grid[dmrs_positions[:, 0], dmrs_positions[:, 1]]
             if dmrs_positions.size
@@ -311,6 +329,24 @@ class NrReceiver:
         re_srs_symbols = (
             rx_grid[srs_positions[:, 0], srs_positions[:, 1]]
             if srs_positions.size
+            else np.array([], dtype=np.complex128)
+        )
+        ptrs_positions = np.asarray(tx_metadata.ptrs["positions"], dtype=int)
+        re_ptrs_symbols = (
+            rx_grid[ptrs_positions[:, 0], ptrs_positions[:, 1]]
+            if ptrs_positions.size
+            else np.array([], dtype=np.complex128)
+        )
+        ssb_positions = np.asarray(tx_metadata.ssb["positions"], dtype=int)
+        re_ssb_symbols = (
+            rx_grid[ssb_positions[:, 0], ssb_positions[:, 1]]
+            if ssb_positions.size
+            else np.array([], dtype=np.complex128)
+        )
+        pbch_dmrs_positions = np.asarray(tx_metadata.ssb.get("pbch_dmrs_positions", np.zeros((0, 2), dtype=int)), dtype=int)
+        re_pbch_dmrs_symbols = (
+            rx_grid[pbch_dmrs_positions[:, 0], pbch_dmrs_positions[:, 1]]
+            if pbch_dmrs_positions.size
             else np.array([], dtype=np.complex128)
         )
         h_symbols = h_full[positions[:, 0], positions[:, 1]]
@@ -420,6 +456,12 @@ class NrReceiver:
             re_csi_rs_symbols=re_csi_rs_symbols,
             re_srs_positions=srs_positions,
             re_srs_symbols=re_srs_symbols,
+            re_ptrs_positions=ptrs_positions,
+            re_ptrs_symbols=re_ptrs_symbols,
+            re_ssb_positions=ssb_positions,
+            re_ssb_symbols=re_ssb_symbols,
+            re_pbch_dmrs_positions=pbch_dmrs_positions,
+            re_pbch_dmrs_symbols=re_pbch_dmrs_symbols,
             rx_symbols=rx_symbols,
             equalized_symbols=equalized,
             detected_symbols=detected_symbols,

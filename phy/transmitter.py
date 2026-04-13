@@ -35,6 +35,8 @@ class TxMetadata:
     dmrs: Dict[str, np.ndarray]
     csi_rs: Dict[str, np.ndarray]
     srs: Dict[str, np.ndarray]
+    ptrs: Dict[str, np.ndarray]
+    ssb: Dict[str, np.ndarray]
     tensor_view_specs: Dict[str, Dict[str, object]]
     modulation_symbols: np.ndarray
     tx_layer_grid: np.ndarray
@@ -71,7 +73,7 @@ class NrTransmitter:
             width = int(prach_cfg.get("preamble_id_bits", 6))
             preamble_id = int(prach_cfg.get("preamble_id", 0))
             return preamble_id_to_bits(preamble_id, width=width)
-        if channel_type.lower() in {"control", "pdcch", "pucch"}:
+        if channel_type.lower() in {"control", "pdcch", "pucch", "pbch"}:
             size = int(self.config.get("control_channel", {}).get("payload_bits", 128))
         else:
             size = int(self.config.get("transport_block", {}).get("size_bits", 1024))
@@ -142,6 +144,15 @@ class NrTransmitter:
             "symbols": np.array([], dtype=np.complex128),
             "port": 0,
         }
+        empty_ssb = {
+            "positions": np.zeros((0, 2), dtype=int),
+            "symbols": np.array([], dtype=np.complex128),
+            "pss_positions": np.zeros((0, 2), dtype=int),
+            "sss_positions": np.zeros((0, 2), dtype=int),
+            "pbch_dmrs_positions": np.zeros((0, 2), dtype=int),
+            "pbch_dmrs_symbols": np.array([], dtype=np.complex128),
+            "port": 0,
+        }
         return TxResult(
             waveform=waveform,
             metadata=TxMetadata(
@@ -162,6 +173,8 @@ class NrTransmitter:
                 dmrs=empty_dmrs,
                 csi_rs=empty_rs.copy(),
                 srs=empty_rs.copy(),
+                ptrs=empty_rs.copy(),
+                ssb=empty_ssb.copy(),
                 tensor_view_specs=grid.tensor_view_specs_as_dict(),
                 modulation_symbols=prach_sequence.copy(),
                 tx_layer_grid=grid.layer_grid.copy(),
@@ -221,19 +234,49 @@ class NrTransmitter:
         grid.map_symbols(tx_symbols, mapping.positions)
         tx_grid_data = grid.grid.copy()
         reference_cfg = self.config.get("reference_signals", {})
+        empty_rs = {"positions": np.zeros((0, 2), dtype=int), "symbols": np.array([], dtype=np.complex128), "port": 0}
+        empty_ssb = {
+            "positions": np.zeros((0, 2), dtype=int),
+            "symbols": np.array([], dtype=np.complex128),
+            "pss_positions": np.zeros((0, 2), dtype=int),
+            "sss_positions": np.zeros((0, 2), dtype=int),
+            "pbch_dmrs_positions": np.zeros((0, 2), dtype=int),
+            "pbch_dmrs_symbols": np.array([], dtype=np.complex128),
+            "port": 0,
+        }
         insert_csi_rs = bool(reference_cfg.get("enable_csi_rs", True)) and direction == "downlink" and channel_type in {"data", "pdsch", "control", "pdcch"}
         insert_srs = bool(reference_cfg.get("enable_srs", True)) and direction == "uplink" and channel_type in {"data", "pusch"}
+        insert_ptrs = bool(reference_cfg.get("enable_ptrs", True)) and (
+            (direction == "downlink" and channel_type in {"data", "pdsch"})
+            or (direction == "uplink" and channel_type in {"data", "pusch"})
+        )
+        insert_ssb = direction == "downlink" and channel_type in {"pbch", "broadcast"}
         csi_rs = (
             grid.insert_csi_rs(slot=0, seed=int(reference_cfg.get("sequence_seed", 73)))
             if insert_csi_rs
-            else {"positions": np.zeros((0, 2), dtype=int), "symbols": np.array([], dtype=np.complex128), "port": 0}
+            else empty_rs.copy()
         )
         srs = (
             grid.insert_srs(slot=0, seed=int(reference_cfg.get("sequence_seed", 73)))
             if insert_srs
-            else {"positions": np.zeros((0, 2), dtype=int), "symbols": np.array([], dtype=np.complex128), "port": 0}
+            else empty_rs.copy()
         )
-        dmrs = grid.insert_dmrs(slot=0)
+        ptrs = (
+            grid.insert_ptrs(
+                slot=0,
+                seed=int(reference_cfg.get("sequence_seed", 73)),
+                direction=direction,
+                channel_type=channel_type,
+            )
+            if insert_ptrs
+            else empty_rs.copy()
+        )
+        ssb = (
+            grid.insert_ssb(slot=0, seed=int(reference_cfg.get("sequence_seed", 73)))
+            if insert_ssb
+            else empty_ssb.copy()
+        )
+        dmrs = grid.insert_dmrs(slot=0) if channel_type not in {"pbch", "broadcast"} else empty_rs.copy()
         port_waveforms = self._ofdm_modulate(grid)
         waveform = port_waveforms[0].copy()
 
@@ -257,6 +300,8 @@ class NrTransmitter:
                 dmrs=dmrs,
                 csi_rs=csi_rs,
                 srs=srs,
+                ptrs=ptrs,
+                ssb=ssb,
                 tensor_view_specs=grid.tensor_view_specs_as_dict(),
                 modulation_symbols=modulation_symbols,
                 tx_layer_grid=grid.layer_grid.copy(),

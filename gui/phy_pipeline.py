@@ -885,7 +885,12 @@ class PhyPipelinePanel(QWidget):
         if direction == "uplink":
             mapping_label = "PUCCH-style" if tx_meta.channel_type in {"control", "pucch"} else "PUSCH-style"
         else:
-            mapping_label = "PDCCH-style" if tx_meta.channel_type in {"control", "pdcch"} else "PDSCH-style"
+            if tx_meta.channel_type in {"control", "pdcch"}:
+                mapping_label = "PDCCH/CORESET-style"
+            elif tx_meta.channel_type in {"pbch", "broadcast"}:
+                mapping_label = "SSB/PBCH-style"
+            else:
+                mapping_label = "PDSCH-style"
         numerology = tx_meta.numerology
         positions = tx_meta.mapping.positions
         payload_with_crc = (
@@ -991,6 +996,34 @@ class PhyPipelinePanel(QWidget):
                     "artifacts": [
                         {"name": "CORESET mask", "kind": "grid", "payload": {"image": coreset_mask, "lookup": "plasma", "levels": (0.0, 1.0)}, "description": "Binary mask of the configured CORESET region."},
                         {"name": "SearchSpace mask", "kind": "grid", "payload": {"image": search_space_mask, "lookup": "plasma", "levels": (0.0, 1.0)}, "description": "Binary mask of monitored SearchSpace REs inside the CORESET."},
+                    ],
+                },
+            )
+        elif direction == "downlink" and tx_meta.channel_type in {"pbch", "broadcast"}:
+            from phy.resource_grid import ResourceGrid
+
+            helper = ResourceGrid(numerology, tx_meta.allocation, spatial_layout=tx_meta.spatial_layout)
+            ssb_mask = helper.ssb_re_mask().astype(np.float32)
+            insertion_index = next(
+                (index for index, stage in enumerate(stages) if stage.get("key") == "resource_grid_dmrs"),
+                len(stages),
+            )
+            stages.insert(
+                insertion_index,
+                {
+                    "key": "ssb_pbch_layout",
+                    "section": "TX",
+                    "flow_label": "SSB",
+                    "title": "SSB / PBCH Broadcast Layout",
+                    "description": "PBCH payload is mapped inside a dedicated SSB region with reserved PSS, SSS, and PBCH-DMRS resources.",
+                    "metrics": {
+                        "SSB start symbol": int(tx_meta.allocation.ssb_start_symbol),
+                        "SSB symbol count": int(tx_meta.allocation.ssb_symbol_count),
+                        "SSB subcarriers": int(tx_meta.allocation.ssb_subcarriers),
+                        "PBCH payload RE count": int(tx_meta.mapping.positions.shape[0]),
+                    },
+                    "artifacts": [
+                        {"name": "SSB mask", "kind": "grid", "payload": {"image": ssb_mask, "lookup": "plasma", "levels": (0.0, 1.0)}, "description": "Binary mask of the configured SSB region."},
                     ],
                 },
             )
@@ -1216,24 +1249,35 @@ class PhyPipelinePanel(QWidget):
                 "key": "resource_grid_dmrs",
                 "section": "TX",
                 "flow_label": "Grid + DMRS",
-                "title": "Resource Grid + DMRS",
-                "description": f"Mapped {mapping_label} symbols are placed onto the NR-like resource grid. DMRS is inserted on configured OFDM symbols for channel estimation.",
+                "title": "Resource Grid + RS",
+                "description": (
+                    "Mapped "
+                    f"{mapping_label} symbols are placed onto the NR-like resource grid. "
+                    + (
+                        "PBCH-DMRS and SSB reference signals are reserved inside the broadcast region."
+                        if tx_meta.channel_type in {"pbch", "broadcast"}
+                        else "DMRS is inserted on configured OFDM symbols for channel estimation."
+                    )
+                ),
                 "metrics": {
                     "CORESET RE count": int(np.sum(allocation_map == 1)),
                     "SearchSpace / mapped control RE count": int(np.sum(allocation_map == 2)) if tx_meta.channel_type in {"control", "pdcch"} and direction == "downlink" else 0,
+                    "SSB reserved RE count": int(np.sum(allocation_map == 1)) if tx_meta.channel_type in {"pbch", "broadcast"} and direction == "downlink" else 0,
                     "Grid shape": f"{tx_meta.tx_grid.shape[0]} x {tx_meta.tx_grid.shape[1]}",
                     "Control RE count": int(np.sum(allocation_map == 1)),
                     "Data RE count": int(np.sum(allocation_map == 2)),
                     "DMRS RE count": int(np.sum(allocation_map == 3)),
                     "CSI-RS RE count": int(np.sum(allocation_map == 4)),
                     "SRS RE count": int(np.sum(allocation_map == 5)),
+                    "PT-RS RE count": int(np.sum(allocation_map == 6)),
                 },
                 "artifacts": [
-                    {"name": "Allocation map", "kind": "grid", "payload": {"image": allocation_map, "lookup": "allocation", "levels": (0.0, 5.0)}, "description": "Heatmap showing CORESET, scheduled payload/control REs, DMRS, CSI-RS, and SRS placement."},
+                    {"name": "Allocation map", "kind": "grid", "payload": {"image": allocation_map, "lookup": "allocation", "levels": (0.0, 6.0)}, "description": "Heatmap showing CORESET or SSB, scheduled payload/control REs, DMRS/PBCH-DMRS, CSI-RS, SRS, and PT-RS placement."},
                     {"name": "TX grid magnitude", "kind": "grid", "payload": {"image": np.abs(tx_meta.tx_grid), "lookup": "viridis"}, "description": "Magnitude of the populated resource grid after DMRS insertion."},
                     {"name": "DMRS mask", "kind": "grid", "payload": {"image": dmrs_mask, "lookup": "plasma", "levels": (0.0, 1.0)}, "description": "Binary mask of DMRS RE locations."},
                     {"name": "CSI-RS mask", "kind": "grid", "payload": {"image": (allocation_map == 4.0).astype(np.float32), "lookup": "plasma", "levels": (0.0, 1.0)}, "description": "Binary mask of CSI-RS RE locations."},
                     {"name": "SRS mask", "kind": "grid", "payload": {"image": (allocation_map == 5.0).astype(np.float32), "lookup": "plasma", "levels": (0.0, 1.0)}, "description": "Binary mask of SRS RE locations."},
+                    {"name": "PT-RS mask", "kind": "grid", "payload": {"image": (allocation_map == 6.0).astype(np.float32), "lookup": "plasma", "levels": (0.0, 1.0)}, "description": "Binary mask of PT-RS RE locations."},
                 ],
             },
             {
@@ -1335,6 +1379,8 @@ class PhyPipelinePanel(QWidget):
                     "DMRS RE count": rx.re_dmrs_positions.shape[0],
                     "CSI-RS RE count": rx.re_csi_rs_positions.shape[0],
                     "SRS RE count": rx.re_srs_positions.shape[0],
+                    "PT-RS RE count": rx.re_ptrs_positions.shape[0],
+                    "SSB RE count": rx.re_ssb_positions.shape[0],
                     "RX grid shape": f"{rx.rx_grid.shape[0]} x {rx.rx_grid.shape[1]}",
                 },
                 "artifacts": [
@@ -1343,6 +1389,7 @@ class PhyPipelinePanel(QWidget):
                     {"name": "Extracted DMRS symbols", "kind": "constellation_compare", "payload": {"series": [{"name": "DMRS RE", "points": rx.re_dmrs_symbols, "color": "#f59e0b", "symbol_indices": rx.re_dmrs_positions[: rx.re_dmrs_symbols.size, 0] if rx.re_dmrs_positions.size else np.array([], dtype=int)}]}, "description": "DMRS observations extracted from the RX grid."},
                     {"name": "Extracted CSI-RS symbols", "kind": "constellation_compare", "payload": {"series": [{"name": "CSI-RS RE", "points": rx.re_csi_rs_symbols, "color": "#a855f7", "symbol_indices": rx.re_csi_rs_positions[: rx.re_csi_rs_symbols.size, 0] if rx.re_csi_rs_positions.size else np.array([], dtype=int)}]}, "description": "CSI-RS observations extracted from the RX grid."},
                     {"name": "Extracted SRS symbols", "kind": "constellation_compare", "payload": {"series": [{"name": "SRS RE", "points": rx.re_srs_symbols, "color": "#10b981", "symbol_indices": rx.re_srs_positions[: rx.re_srs_symbols.size, 0] if rx.re_srs_positions.size else np.array([], dtype=int)}]}, "description": "SRS observations extracted from the RX grid."},
+                    {"name": "Extracted PT-RS symbols", "kind": "constellation_compare", "payload": {"series": [{"name": "PT-RS RE", "points": rx.re_ptrs_symbols, "color": "#f472b6", "symbol_indices": rx.re_ptrs_positions[: rx.re_ptrs_symbols.size, 0] if rx.re_ptrs_positions.size else np.array([], dtype=int)}]}, "description": "PT-RS observations extracted from the RX grid."},
                 ],
             },
             {
@@ -1673,13 +1720,18 @@ class PhyPipelinePanel(QWidget):
         tx_meta = result["tx"].metadata
         numerology = tx_meta.numerology
         allocation_map = np.zeros((numerology.symbols_per_slot, numerology.active_subcarriers), dtype=np.float32)
-        if str(getattr(tx_meta, "direction", "downlink")).lower() == "downlink" and str(getattr(tx_meta, "channel_type", "data")).lower() in {"control", "pdcch"}:
+        channel_type = str(getattr(tx_meta, "channel_type", "data")).lower()
+        if str(getattr(tx_meta, "direction", "downlink")).lower() == "downlink" and channel_type in {"control", "pdcch"}:
             from phy.resource_grid import ResourceGrid
 
             helper = ResourceGrid(numerology, tx_meta.allocation, spatial_layout=tx_meta.spatial_layout)
             coreset_positions = helper.coreset_positions()
             if coreset_positions.size:
                 allocation_map[coreset_positions[:, 0], coreset_positions[:, 1]] = 1.0
+        elif str(getattr(tx_meta, "direction", "downlink")).lower() == "downlink" and channel_type in {"pbch", "broadcast"}:
+            ssb_positions = tx_meta.ssb["positions"]
+            if ssb_positions.size:
+                allocation_map[ssb_positions[:, 0], ssb_positions[:, 1]] = 1.0
         positions = tx_meta.mapping.positions
         if positions.size:
             allocation_map[positions[:, 0], positions[:, 1]] = 2.0
@@ -1688,12 +1740,19 @@ class PhyPipelinePanel(QWidget):
         if dmrs_positions.size:
             allocation_map[dmrs_positions[:, 0], dmrs_positions[:, 1]] = 3.0
             dmrs_mask[dmrs_positions[:, 0], dmrs_positions[:, 1]] = 1.0
+        pbch_dmrs_positions = np.asarray(tx_meta.ssb.get("pbch_dmrs_positions", np.zeros((0, 2), dtype=int)), dtype=int)
+        if pbch_dmrs_positions.size:
+            allocation_map[pbch_dmrs_positions[:, 0], pbch_dmrs_positions[:, 1]] = 3.0
+            dmrs_mask[pbch_dmrs_positions[:, 0], pbch_dmrs_positions[:, 1]] = 1.0
         csi_rs_positions = tx_meta.csi_rs["positions"]
         if csi_rs_positions.size:
             allocation_map[csi_rs_positions[:, 0], csi_rs_positions[:, 1]] = 4.0
         srs_positions = tx_meta.srs["positions"]
         if srs_positions.size:
             allocation_map[srs_positions[:, 0], srs_positions[:, 1]] = 5.0
+        ptrs_positions = tx_meta.ptrs["positions"]
+        if ptrs_positions.size:
+            allocation_map[ptrs_positions[:, 0], ptrs_positions[:, 1]] = 6.0
         return allocation_map, dmrs_mask
 
     @staticmethod

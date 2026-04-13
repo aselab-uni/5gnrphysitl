@@ -173,6 +173,7 @@ class NrPhyResearchApp(QMainWindow):
             "Transform precoding": "Yes" if bool(self.current_config.get("uplink", {}).get("transform_precoding", False)) else "No",
             "CSI-RS baseline": "Yes" if bool(self.current_config.get("reference_signals", {}).get("enable_csi_rs", True)) else "No",
             "SRS baseline": "Yes" if bool(self.current_config.get("reference_signals", {}).get("enable_srs", True)) else "No",
+            "PT-RS baseline": "Yes" if bool(self.current_config.get("reference_signals", {}).get("enable_ptrs", True)) else "No",
         }
         tx_file = str(self.current_config.get("payload_io", {}).get("tx_file_path", "")).strip()
         if tx_file:
@@ -234,6 +235,8 @@ class NrPhyResearchApp(QMainWindow):
             notes.append("Downlink CSI-RS baseline is enabled. CSI-RS REs are visible in the grid and extraction stages for future CSI/MIMO work.")
         if bool(config.get("reference_signals", {}).get("enable_srs", True)):
             notes.append("Uplink SRS baseline is enabled for uplink data paths. SRS REs are visible in the grid and extraction stages.")
+        if bool(config.get("reference_signals", {}).get("enable_ptrs", True)):
+            notes.append("PT-RS baseline is enabled for scheduled data paths. PT-RS REs are visible in the grid and extraction stages for phase-tracking observability.")
         if str(link.get("direction", "downlink")).lower() == "uplink":
             channel_type = str(link.get("channel_type", "data")).lower()
             if channel_type == "prach":
@@ -248,6 +251,11 @@ class NrPhyResearchApp(QMainWindow):
             notes.append(
                 "Downlink control baseline is active with explicit CORESET/SearchSpace configuration. "
                 "Only monitored SearchSpace REs inside the CORESET are used for PDCCH-style mapping."
+            )
+        elif str(link.get("channel_type", "data")).lower() in {"pbch", "broadcast"}:
+            notes.append(
+                "Downlink PBCH baseline is active with a dedicated SSB region. "
+                "PSS, SSS, and PBCH-DMRS occupy reserved SSB REs, while PBCH payload symbols map onto the remaining PBCH REs."
             )
         if bool(simulation.get("use_gnuradio", False)):
             if HAVE_GNURADIO:

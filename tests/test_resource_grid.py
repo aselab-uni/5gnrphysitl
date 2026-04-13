@@ -23,6 +23,10 @@ def test_resource_grid_positions_are_non_empty() -> None:
     assert grid.prach_positions().shape[0] > 0
     assert grid.csi_rs_positions().shape[0] > 0
     assert grid.srs_positions().shape[0] > 0
+    assert grid.ptrs_positions().shape[0] > 0
+    assert grid.ssb_positions().shape[0] > 0
+    assert grid.pbch_positions().shape[0] > 0
+    assert grid.pbch_dmrs_positions().shape[0] > 0
     assert grid.dmrs_positions().shape[0] > 0
 
 
@@ -58,7 +62,7 @@ def test_resource_grid_exposes_tensor_views_and_preserves_legacy_grid() -> None:
     assert specs["rx_grid_tensor"]["shape"] == [2, numerology.symbols_per_slot, numerology.active_subcarriers]
 
     masks = grid.re_masks()
-    assert set(masks) == {"control", "coreset", "search_space", "dmrs", "data", "prach", "csi_rs", "srs"}
+    assert set(masks) == {"control", "coreset", "search_space", "dmrs", "data", "prach", "csi_rs", "srs", "ptrs", "ssb"}
     assert masks["control"].shape == grid.shape
     assert masks["coreset"].shape == grid.shape
     assert masks["search_space"].shape == grid.shape
@@ -67,4 +71,8 @@ def test_resource_grid_exposes_tensor_views_and_preserves_legacy_grid() -> None:
     assert masks["prach"].shape == grid.shape
     assert masks["csi_rs"].shape == grid.shape
     assert masks["srs"].shape == grid.shape
+    assert masks["ptrs"].shape == grid.shape
+    assert masks["ssb"].shape == grid.shape
     assert np.sum(masks["search_space"]) <= np.sum(masks["coreset"])
+    assert np.sum(masks["ptrs"]) > 0
+    assert np.sum(masks["ssb"]) > 0
