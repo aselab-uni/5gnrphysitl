@@ -11,6 +11,7 @@ from PyQt5.QtWidgets import (
     QGridLayout,
     QGroupBox,
     QHBoxLayout,
+    QLabel,
     QLineEdit,
     QPushButton,
     QSizePolicy,
@@ -83,6 +84,10 @@ class ControlPanel(QWidget):
         self.widgets["modulation"] = self._combo(["QPSK", "16QAM", "64QAM", "256QAM"])
         self.widgets["mcs"] = self._spin(0, 27, 9)
         self.widgets["capture_slots"] = self._spin(1, 200, 1)
+        self.widgets["capture_slots"].setToolTip(
+            "Number of consecutive slot snapshots captured in one single-link run. "
+            "The PHY Pipeline frame/slot scrubbers and playback use these captured slots."
+        )
         self.widgets["batch_experiment"] = self._combo(
             [
                 "ber_vs_snr",
@@ -167,6 +172,24 @@ class ControlPanel(QWidget):
             column = index % 3
             primary_button_layout.addWidget(button, row, column)
         layout.addLayout(primary_button_layout)
+
+        self.buttons["run"].setToolTip(
+            "Run one simulation and update KPI/plots. Use this for quick reruns when you mainly care about the final result."
+        )
+        self.buttons["step_mode"].setToolTip(
+            "Run one simulation, then switch to the PHY Pipeline tab and reset playback to the first stage for block-by-block inspection."
+        )
+        self.buttons["batch"].setToolTip(
+            "Run the selected sweep experiment and export CSV/plots/report instead of a single-link snapshot."
+        )
+
+        help_label = QLabel(
+            "Run: execute once and inspect final results. "
+            "Step Mode: execute once, then enter PHY Pipeline playback from the first captured slot/stage."
+        )
+        help_label.setWordWrap(True)
+        help_label.setStyleSheet("color: #94a3b8; font-size: 11px;")
+        layout.addWidget(help_label)
 
         tooling_button_layout = QGridLayout()
         tooling_button_layout.setHorizontalSpacing(6)
