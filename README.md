@@ -857,6 +857,8 @@ Notes:
 - For the proposed GUI architecture and PHY screen inventory, see `docs/GUI_ARCHITECTURE.md`.
 - For a deep comparison between this simulator and real-world 5G systems, see `docs/REAL_5G_SYSTEM_VS_PROJECT.md`.
 - For a stage-by-stage technical explanation of the PHY chain aligned with the GUI pipeline, see `docs/TECHDOC_5G_NR_PHY_TRACE.md`.
+- For full-option PHY pipeline use cases and extension priorities, see `docs/FULL_OPTION_PHY_USECASES.md`.
+- For classroom-ready lab setups, GUI settings, commands, expected results, and discussion prompts, see `docs/TEACHING_LABS_MATRIX.md`.
 - `docs/SHOWCASES_3GPP_PHY.md` also includes a checklist to distinguish a teaching model from a conformance-grade NR PHY.
 
 ## 1. Problem Analysis
