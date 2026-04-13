@@ -24,6 +24,7 @@ from PyQt5.QtWidgets import (
     QWidget,
 )
 
+from phy.artifacts import normalize_pipeline_stage, pipeline_stage, stage_artifact
 from phy.coding import _polar_transform, attach_crc
 
 
@@ -255,25 +256,35 @@ class PhyPipelinePanel(QWidget):
         self.slot_history = []
         self.current_slot_record = None
         self.stages = [
-            {
-                "key": f"pipeline_{index}",
-                "section": str(stage.get("section", "Other")),
-                "flow_label": str(stage.get("stage", f"Stage {index + 1}")),
-                "title": str(stage.get("stage", f"Stage {index + 1}")),
-                "description": str(stage.get("description", "")),
-                "metrics": {
-                    "Domain": str(stage.get("domain", "n/a")),
-                    "Preview": str(stage.get("preview_kind", "n/a")),
-                },
-                "artifacts": [
-                    {
-                        "name": "Primary view",
-                        "kind": str(stage.get("preview_kind", "text")),
-                        "payload": stage.get("data", np.array([])),
-                        "description": str(stage.get("description", "")),
-                    }
-                ],
-            }
+            normalize_pipeline_stage(
+                pipeline_stage(
+                    key=f"pipeline_{index}",
+                    section=str(stage.get("section", "Other")),
+                    flow_label=str(stage.get("stage", f"Stage {index + 1}")),
+                    title=str(stage.get("stage", f"Stage {index + 1}")),
+                    description=str(stage.get("description", "")),
+                    metrics={
+                        "Domain": str(stage.get("domain", "n/a")),
+                        "Artifact type": str(stage.get("artifact_type", stage.get("preview_kind", "n/a"))),
+                        "Input shape": stage.get("input_shape", "n/a"),
+                        "Output shape": stage.get("output_shape", "n/a"),
+                    },
+                    artifacts=[
+                        stage_artifact(
+                            name="Primary view",
+                            artifact_type=str(stage.get("artifact_type", stage.get("preview_kind", "text"))),
+                            payload=stage.get("data", np.array([])),
+                            description=str(stage.get("description", "")),
+                            input_shape=stage.get("input_shape"),
+                            output_shape=stage.get("output_shape"),
+                            notes=str(stage.get("notes", "")),
+                        )
+                    ],
+                    input_shape=stage.get("input_shape"),
+                    output_shape=stage.get("output_shape"),
+                    notes=str(stage.get("notes", "")),
+                )
+            )
             for index, stage in enumerate(pipeline)
         ]
         self._rebuild_flow()
@@ -576,8 +587,16 @@ class PhyPipelinePanel(QWidget):
         self.stage_title.setText(
             f"<b>{stage['section']}</b> | <b>{stage['title']}</b> | Frame 0 / Slot 0 / Symbol {self.symbol_slider.value()}"
         )
-        self.stage_summary.setPlainText(stage["description"])
-        self._update_metrics(stage["metrics"])
+        summary = str(stage["description"])
+        notes = str(stage.get("notes", "")).strip()
+        if notes:
+            summary = f"{summary}\n\nNotes: {notes}"
+        self.stage_summary.setPlainText(summary)
+        metrics = dict(stage["metrics"])
+        metrics.setdefault("Artifact type", stage.get("artifact_type", "n/a"))
+        metrics.setdefault("Input shape", stage.get("input_shape", "n/a"))
+        metrics.setdefault("Output shape", stage.get("output_shape", "n/a"))
+        self._update_metrics(metrics)
         self.artifact_selector.blockSignals(True)
         self.artifact_selector.clear()
         for artifact in stage["artifacts"]:
@@ -603,7 +622,11 @@ class PhyPipelinePanel(QWidget):
             self._clear_view("This stage does not expose an artifact.")
             return
         artifact = artifacts[self.artifact_selector.currentIndex()]
-        self.artifact_caption.setText(str(artifact.get("description", "")))
+        caption = str(artifact.get("description", ""))
+        artifact_notes = str(artifact.get("notes", "")).strip()
+        if artifact_notes:
+            caption = f"{caption}\nNotes: {artifact_notes}"
+        self.artifact_caption.setText(caption)
         self._render_primary_artifact(artifact)
         self._render_secondary_artifact(artifact)
         excerpt = artifact.get("excerpt")
@@ -828,8 +851,16 @@ class PhyPipelinePanel(QWidget):
         self.stage_title.setText(
             f"<b>{stage['section']}</b> | <b>{stage['title']}</b> | Frame {frame_index} / Slot {slot_index} / Symbol {self.symbol_slider.value()}"
         )
-        self.stage_summary.setPlainText(stage["description"])
-        self._update_metrics(stage["metrics"])
+        summary = str(stage["description"])
+        notes = str(stage.get("notes", "")).strip()
+        if notes:
+            summary = f"{summary}\n\nNotes: {notes}"
+        self.stage_summary.setPlainText(summary)
+        metrics = dict(stage["metrics"])
+        metrics.setdefault("Artifact type", stage.get("artifact_type", "n/a"))
+        metrics.setdefault("Input shape", stage.get("input_shape", "n/a"))
+        metrics.setdefault("Output shape", stage.get("output_shape", "n/a"))
+        self._update_metrics(metrics)
         self.artifact_selector.blockSignals(True)
         self.artifact_selector.clear()
         for artifact in stage["artifacts"]:
@@ -906,7 +937,7 @@ class PhyPipelinePanel(QWidget):
         transfer = result.get("file_transfer")
         if transfer:
             stages = [*self._file_transfer_entry_stages(result), *stages, *self._file_transfer_exit_stages(result)]
-        return stages
+        return [normalize_pipeline_stage(stage) for stage in stages]
 
     def _stage_definitions(
         self,

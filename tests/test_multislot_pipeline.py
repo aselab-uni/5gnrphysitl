@@ -32,6 +32,11 @@ def test_simulate_link_sequence_returns_multiple_slots() -> None:
     assert [entry["slot_index"] for entry in result["slot_history"]] == [0, 1, 2]
     assert result["sequence_summary"]["captured_slots"] == 3
     assert result["kpis"].extra["captured_slots"] == 3.0
+    assert result["pipeline_contract_version"] == 1
+    assert result["pipeline"][0]["artifact_type"] == "bits"
+    assert "input_shape" in result["pipeline"][0]
+    assert "output_shape" in result["pipeline"][0]
+    assert result["slot_context"]["slot_label"] == "Frame 0 / Slot 0"
 
 
 def test_phy_pipeline_panel_uses_multislot_scrubber() -> None:
@@ -59,6 +64,8 @@ def test_phy_pipeline_panel_uses_multislot_scrubber() -> None:
     assert int(panel.current_slot_record["frame_index"]) == 1
     assert int(panel.current_slot_record["slot_index"]) == 1
     assert "Frame 1 / Slot 1" in panel.stage_title.text()
+    assert panel.stages[0]["artifact_type"] == "bits"
+    assert "Input shape" in panel.stages[0]["metrics"]
     panel.deleteLater()
     app.processEvents()
 

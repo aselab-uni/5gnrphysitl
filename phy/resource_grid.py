@@ -116,6 +116,34 @@ class ResourceGrid:
                     positions.append((symbol, sc))
         return np.asarray(positions, dtype=int)
 
+    def control_re_mask(self) -> np.ndarray:
+        mask = np.zeros(self.shape, dtype=np.uint8)
+        positions = self.pdcch_positions()
+        if positions.size:
+            mask[positions[:, 0], positions[:, 1]] = 1
+        return mask
+
+    def dmrs_re_mask(self) -> np.ndarray:
+        mask = np.zeros(self.shape, dtype=np.uint8)
+        positions = self.dmrs_positions()
+        if positions.size:
+            mask[positions[:, 0], positions[:, 1]] = 1
+        return mask
+
+    def data_re_mask(self) -> np.ndarray:
+        mask = np.zeros(self.shape, dtype=np.uint8)
+        positions = self.pdsch_positions()
+        if positions.size:
+            mask[positions[:, 0], positions[:, 1]] = 1
+        return mask
+
+    def re_masks(self) -> Dict[str, np.ndarray]:
+        return {
+            "control": self.control_re_mask(),
+            "dmrs": self.dmrs_re_mask(),
+            "data": self.data_re_mask(),
+        }
+
     def mapping_for(self, channel_type: str, bits_per_symbol: int, modulation: str) -> ChannelMapping:
         channel_type = channel_type.lower()
         if channel_type in {"control", "pdcch"}:

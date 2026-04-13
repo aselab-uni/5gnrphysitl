@@ -1,5 +1,7 @@
 """5G NR PHY building blocks for the software-in-the-loop prototype."""
 
+from .artifacts import normalize_pipeline_stage, normalize_stage_artifact, pipeline_stage, stage_artifact
+from .context import SlotContext
 from .kpi import LinkKpiSummary
 from .modulation import ModulationMapper
 from .numerology import NumerologyConfig
@@ -14,7 +16,12 @@ __all__ = [
     "NrReceiver",
     "NrTransmitter",
     "RxResult",
+    "SlotContext",
     "SpatialLayout",
     "TensorViewSpec",
     "TxResult",
+    "normalize_pipeline_stage",
+    "normalize_stage_artifact",
+    "pipeline_stage",
+    "stage_artifact",
 ]

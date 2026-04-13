@@ -48,3 +48,9 @@ def test_resource_grid_exposes_tensor_views_and_preserves_legacy_grid() -> None:
     assert specs["layer_grid"]["shape"] == [2, numerology.symbols_per_slot, numerology.active_subcarriers]
     assert specs["port_grid"]["shape"] == [2, numerology.symbols_per_slot, numerology.active_subcarriers]
     assert specs["rx_grid_tensor"]["shape"] == [2, numerology.symbols_per_slot, numerology.active_subcarriers]
+
+    masks = grid.re_masks()
+    assert set(masks) == {"control", "dmrs", "data"}
+    assert masks["control"].shape == grid.shape
+    assert masks["dmrs"].shape == grid.shape
+    assert masks["data"].shape == grid.shape
