@@ -18,6 +18,8 @@ def test_resource_grid_positions_are_non_empty() -> None:
     assert grid.pusch_positions().shape[0] > 0
     assert grid.pucch_positions().shape[0] > 0
     assert grid.prach_positions().shape[0] > 0
+    assert grid.csi_rs_positions().shape[0] > 0
+    assert grid.srs_positions().shape[0] > 0
     assert grid.dmrs_positions().shape[0] > 0
 
 
@@ -53,8 +55,10 @@ def test_resource_grid_exposes_tensor_views_and_preserves_legacy_grid() -> None:
     assert specs["rx_grid_tensor"]["shape"] == [2, numerology.symbols_per_slot, numerology.active_subcarriers]
 
     masks = grid.re_masks()
-    assert set(masks) == {"control", "dmrs", "data", "prach"}
+    assert set(masks) == {"control", "dmrs", "data", "prach", "csi_rs", "srs"}
     assert masks["control"].shape == grid.shape
     assert masks["dmrs"].shape == grid.shape
     assert masks["data"].shape == grid.shape
     assert masks["prach"].shape == grid.shape
+    assert masks["csi_rs"].shape == grid.shape
+    assert masks["srs"].shape == grid.shape

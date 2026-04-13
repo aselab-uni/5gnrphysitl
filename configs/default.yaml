@@ -41,6 +41,11 @@ frame:
   pusch_start_symbol: 2
   pucch_symbol_count: 2
   prach_symbol_count: 1
+  csi_rs_symbols: [12]
+  srs_symbols: [13]
+  rs_comb: 4
+  csi_rs_subcarrier_offset: 1
+  srs_subcarrier_offset: 2
   control_subcarriers: 72
   prach_subcarriers: 72
   dmrs_symbols: [3, 10]
@@ -59,6 +64,11 @@ prach:
   root_sequence_index: 25
   cyclic_shift: 13
   detection_threshold: 0.45
+
+reference_signals:
+  enable_csi_rs: true
+  enable_srs: true
+  sequence_seed: 73
 
 coding:
   scheme: ldpc_inspired

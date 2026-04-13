@@ -33,6 +33,8 @@ class TxMetadata:
     mapper: object
     mapping: ChannelMapping
     dmrs: Dict[str, np.ndarray]
+    csi_rs: Dict[str, np.ndarray]
+    srs: Dict[str, np.ndarray]
     tensor_view_specs: Dict[str, Dict[str, object]]
     modulation_symbols: np.ndarray
     tx_layer_grid: np.ndarray
@@ -135,6 +137,11 @@ class NrTransmitter:
             "symbols": np.array([], dtype=np.complex128),
             "port": 0,
         }
+        empty_rs = {
+            "positions": np.zeros((0, 2), dtype=int),
+            "symbols": np.array([], dtype=np.complex128),
+            "port": 0,
+        }
         return TxResult(
             waveform=waveform,
             metadata=TxMetadata(
@@ -153,6 +160,8 @@ class NrTransmitter:
                 mapper=PrachMapper(prach_sequence),
                 mapping=mapping,
                 dmrs=empty_dmrs,
+                csi_rs=empty_rs.copy(),
+                srs=empty_rs.copy(),
                 tensor_view_specs=grid.tensor_view_specs_as_dict(),
                 modulation_symbols=prach_sequence.copy(),
                 tx_layer_grid=grid.layer_grid.copy(),
@@ -211,6 +220,19 @@ class NrTransmitter:
         tx_symbols = apply_transform_precoding(modulation_symbols) if transform_precoding_enabled else modulation_symbols.copy()
         grid.map_symbols(tx_symbols, mapping.positions)
         tx_grid_data = grid.grid.copy()
+        reference_cfg = self.config.get("reference_signals", {})
+        insert_csi_rs = bool(reference_cfg.get("enable_csi_rs", True)) and direction == "downlink" and channel_type in {"data", "pdsch", "control", "pdcch"}
+        insert_srs = bool(reference_cfg.get("enable_srs", True)) and direction == "uplink" and channel_type in {"data", "pusch"}
+        csi_rs = (
+            grid.insert_csi_rs(slot=0, seed=int(reference_cfg.get("sequence_seed", 73)))
+            if insert_csi_rs
+            else {"positions": np.zeros((0, 2), dtype=int), "symbols": np.array([], dtype=np.complex128), "port": 0}
+        )
+        srs = (
+            grid.insert_srs(slot=0, seed=int(reference_cfg.get("sequence_seed", 73)))
+            if insert_srs
+            else {"positions": np.zeros((0, 2), dtype=int), "symbols": np.array([], dtype=np.complex128), "port": 0}
+        )
         dmrs = grid.insert_dmrs(slot=0)
         port_waveforms = self._ofdm_modulate(grid)
         waveform = port_waveforms[0].copy()
@@ -233,6 +255,8 @@ class NrTransmitter:
                 mapper=mapper,
                 mapping=mapping,
                 dmrs=dmrs,
+                csi_rs=csi_rs,
+                srs=srs,
                 tensor_view_specs=grid.tensor_view_specs_as_dict(),
                 modulation_symbols=modulation_symbols,
                 tx_layer_grid=grid.layer_grid.copy(),

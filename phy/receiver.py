@@ -40,6 +40,10 @@ class RxResult:
     re_data_symbols: np.ndarray
     re_dmrs_positions: np.ndarray
     re_dmrs_symbols: np.ndarray
+    re_csi_rs_positions: np.ndarray
+    re_csi_rs_symbols: np.ndarray
+    re_srs_positions: np.ndarray
+    re_srs_symbols: np.ndarray
     rx_symbols: np.ndarray
     equalized_symbols: np.ndarray
     detected_symbols: np.ndarray
@@ -209,6 +213,10 @@ class NrReceiver:
             re_data_symbols=rx_symbols,
             re_dmrs_positions=np.zeros((0, 2), dtype=int),
             re_dmrs_symbols=np.array([], dtype=np.complex128),
+            re_csi_rs_positions=np.zeros((0, 2), dtype=int),
+            re_csi_rs_symbols=np.array([], dtype=np.complex128),
+            re_srs_positions=np.zeros((0, 2), dtype=int),
+            re_srs_symbols=np.array([], dtype=np.complex128),
             rx_symbols=rx_symbols,
             equalized_symbols=equalized,
             detected_symbols=equalized.copy(),
@@ -291,6 +299,18 @@ class NrReceiver:
         re_dmrs_symbols = (
             rx_grid[dmrs_positions[:, 0], dmrs_positions[:, 1]]
             if dmrs_positions.size
+            else np.array([], dtype=np.complex128)
+        )
+        csi_rs_positions = np.asarray(tx_metadata.csi_rs["positions"], dtype=int)
+        re_csi_rs_symbols = (
+            rx_grid[csi_rs_positions[:, 0], csi_rs_positions[:, 1]]
+            if csi_rs_positions.size
+            else np.array([], dtype=np.complex128)
+        )
+        srs_positions = np.asarray(tx_metadata.srs["positions"], dtype=int)
+        re_srs_symbols = (
+            rx_grid[srs_positions[:, 0], srs_positions[:, 1]]
+            if srs_positions.size
             else np.array([], dtype=np.complex128)
         )
         h_symbols = h_full[positions[:, 0], positions[:, 1]]
@@ -396,6 +416,10 @@ class NrReceiver:
             re_data_symbols=rx_symbols,
             re_dmrs_positions=dmrs_positions,
             re_dmrs_symbols=re_dmrs_symbols,
+            re_csi_rs_positions=csi_rs_positions,
+            re_csi_rs_symbols=re_csi_rs_symbols,
+            re_srs_positions=srs_positions,
+            re_srs_symbols=re_srs_symbols,
             rx_symbols=rx_symbols,
             equalized_symbols=equalized,
             detected_symbols=detected_symbols,

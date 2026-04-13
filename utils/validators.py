@@ -44,5 +44,11 @@ def validate_config(config: dict) -> dict:
         raise ValueError("frame.prach_symbol_count must be at least 1.")
     if int(frame.get("prach_subcarriers", 12)) < 12:
         raise ValueError("frame.prach_subcarriers must be at least 12.")
+    if int(frame.get("rs_comb", 1)) < 1:
+        raise ValueError("frame.rs_comb must be at least 1.")
+
+    reference_signals = config.get("reference_signals", {})
+    if int(reference_signals.get("sequence_seed", 0)) < 0:
+        raise ValueError("reference_signals.sequence_seed must be non-negative.")
 
     return config

@@ -8,6 +8,7 @@ import numpy as np
 from .dmrs import dmrs_pattern
 from .frame_structure import FrameAllocation
 from .numerology import NumerologyConfig
+from .reference_signals import comb_positions, qpsk_reference_sequence
 from .types import SpatialLayout, TensorViewSpec
 
 
@@ -107,21 +108,39 @@ class ResourceGrid:
                 positions.append((symbol, sc))
         return np.asarray(positions, dtype=int)
 
+    def csi_rs_positions(self) -> np.ndarray:
+        return comb_positions(
+            self.numerology.active_subcarriers,
+            symbols=list(self.allocation.csi_rs_symbols),
+            comb=int(self.allocation.rs_comb),
+            offset=int(self.allocation.csi_rs_subcarrier_offset),
+        )
+
+    def srs_positions(self) -> np.ndarray:
+        return comb_positions(
+            self.numerology.active_subcarriers,
+            symbols=list(self.allocation.srs_symbols),
+            comb=int(self.allocation.rs_comb),
+            offset=int(self.allocation.srs_subcarrier_offset),
+        )
+
     def pdsch_positions(self) -> np.ndarray:
         positions = []
-        dmrs = {tuple(position) for position in self.dmrs_positions().tolist()}
+        reserved = {tuple(position) for position in self.dmrs_positions().tolist()}
+        reserved.update(tuple(position) for position in self.csi_rs_positions().tolist())
         for symbol in self.allocation.pdsch_symbols(self.numerology):
             for sc in range(self.numerology.active_subcarriers):
-                if (symbol, sc) not in dmrs:
+                if (symbol, sc) not in reserved:
                     positions.append((symbol, sc))
         return np.asarray(positions, dtype=int)
 
     def pusch_positions(self) -> np.ndarray:
         positions = []
-        dmrs = {tuple(position) for position in self.dmrs_positions().tolist()}
+        reserved = {tuple(position) for position in self.dmrs_positions().tolist()}
+        reserved.update(tuple(position) for position in self.srs_positions().tolist())
         for symbol in self.allocation.pusch_symbols(self.numerology):
             for sc in range(self.numerology.active_subcarriers):
-                if (symbol, sc) not in dmrs:
+                if (symbol, sc) not in reserved:
                     positions.append((symbol, sc))
         return np.asarray(positions, dtype=int)
 
@@ -167,6 +186,8 @@ class ResourceGrid:
             "dmrs": self.dmrs_re_mask(),
             "data": self.data_re_mask(direction=direction),
             "prach": self.prach_re_mask(),
+            "csi_rs": self.csi_rs_re_mask(),
+            "srs": self.srs_re_mask(),
         }
 
     def prach_re_mask(self) -> np.ndarray:
@@ -193,6 +214,20 @@ class ResourceGrid:
             bits_capacity=positions.shape[0] * bits_per_symbol,
             modulation=modulation,
         )
+
+    def csi_rs_re_mask(self) -> np.ndarray:
+        mask = np.zeros(self.shape, dtype=np.uint8)
+        positions = self.csi_rs_positions()
+        if positions.size:
+            mask[positions[:, 0], positions[:, 1]] = 1
+        return mask
+
+    def srs_re_mask(self) -> np.ndarray:
+        mask = np.zeros(self.shape, dtype=np.uint8)
+        positions = self.srs_positions()
+        if positions.size:
+            mask[positions[:, 0], positions[:, 1]] = 1
+        return mask
 
     def map_symbols(
         self,
@@ -235,6 +270,42 @@ class ResourceGrid:
             "symbols": port_view[position_array[:, 0], position_array[:, 1]]
             if inserted
             else np.array([], dtype=np.complex128),
+            "port": int(port),
+        }
+
+    def insert_csi_rs(self, slot: int = 0, *, port: int = 0, seed: int = 73) -> Dict[str, np.ndarray]:
+        positions = self.csi_rs_positions()
+        if not positions.size:
+            return {"positions": np.zeros((0, 2), dtype=int), "symbols": np.array([], dtype=np.complex128), "port": int(port)}
+        port_view = self.port_view(port)
+        symbols = []
+        for symbol in sorted({int(value) for value in positions[:, 0].tolist()}):
+            symbol_mask = positions[:, 0] == symbol
+            symbol_positions = positions[symbol_mask]
+            sequence = qpsk_reference_sequence(symbol_positions.shape[0], slot=slot, symbol=symbol, seed=int(seed))
+            port_view[symbol_positions[:, 0], symbol_positions[:, 1]] = sequence
+            symbols.append(sequence)
+        return {
+            "positions": positions.copy(),
+            "symbols": np.concatenate(symbols) if symbols else np.array([], dtype=np.complex128),
+            "port": int(port),
+        }
+
+    def insert_srs(self, slot: int = 0, *, port: int = 0, seed: int = 73) -> Dict[str, np.ndarray]:
+        positions = self.srs_positions()
+        if not positions.size:
+            return {"positions": np.zeros((0, 2), dtype=int), "symbols": np.array([], dtype=np.complex128), "port": int(port)}
+        port_view = self.port_view(port)
+        symbols = []
+        for symbol in sorted({int(value) for value in positions[:, 0].tolist()}):
+            symbol_mask = positions[:, 0] == symbol
+            symbol_positions = positions[symbol_mask]
+            sequence = qpsk_reference_sequence(symbol_positions.shape[0], slot=slot, symbol=symbol, seed=int(seed) + 1000)
+            port_view[symbol_positions[:, 0], symbol_positions[:, 1]] = sequence
+            symbols.append(sequence)
+        return {
+            "positions": positions.copy(),
+            "symbols": np.concatenate(symbols) if symbols else np.array([], dtype=np.complex128),
             "port": int(port),
         }
 

@@ -551,6 +551,73 @@ def _build_pipeline_trace(
             },
         )
 
+    if np.asarray(tx_meta.csi_rs["positions"]).size:
+        dmrs_stage_index = next(index for index, stage in enumerate(stages) if stage["stage"] == "DMRS insertion")
+        stages.insert(
+            dmrs_stage_index + 1,
+            {
+                "section": "TX",
+                "stage": "CSI-RS insertion",
+                "domain": "grid",
+                "description": "Downlink CSI-RS baseline is inserted on a comb-based set of REs for channel sounding and future CSI feedback studies.",
+                "preview_kind": "grid",
+                "data": tx_meta.tx_grid,
+                "artifact_type": "grid",
+                "input_shape": [int(dim) for dim in np.asarray(tx_meta.tx_grid_data).shape],
+                "output_shape": [int(dim) for dim in np.asarray(tx_meta.tx_grid).shape],
+                "notes": f"CSI-RS RE count: {int(np.asarray(tx_meta.csi_rs['positions']).shape[0])}",
+            },
+        )
+    if np.asarray(tx_meta.srs["positions"]).size:
+        dmrs_stage_index = next(index for index, stage in enumerate(stages) if stage["stage"] == "DMRS insertion")
+        stages.insert(
+            dmrs_stage_index + 1,
+            {
+                "section": "TX",
+                "stage": "SRS insertion",
+                "domain": "grid",
+                "description": "Uplink SRS baseline is inserted on a comb-based set of REs to expose sounding-reference occupancy for future CSI and beam management work.",
+                "preview_kind": "grid",
+                "data": tx_meta.tx_grid,
+                "artifact_type": "grid",
+                "input_shape": [int(dim) for dim in np.asarray(tx_meta.tx_grid_data).shape],
+                "output_shape": [int(dim) for dim in np.asarray(tx_meta.tx_grid).shape],
+                "notes": f"SRS RE count: {int(np.asarray(tx_meta.srs['positions']).shape[0])}",
+            },
+        )
+    if np.asarray(rx_meta.re_csi_rs_positions).size:
+        extraction_index = next(index for index, stage in enumerate(stages) if stage["stage"] == "Resource element extraction")
+        stages.insert(
+            extraction_index + 1,
+            {
+                "section": "RX",
+                "stage": "CSI-RS extraction",
+                "domain": "symbols",
+                "description": "CSI-RS observations extracted from the received grid for sounding and future CSI estimation workflows.",
+                "preview_kind": "constellation",
+                "data": rx_meta.re_csi_rs_symbols,
+                "artifact_type": "constellation",
+                "input_shape": [int(dim) for dim in np.asarray(rx_meta.rx_grid).shape],
+                "output_shape": [int(dim) for dim in np.asarray(rx_meta.re_csi_rs_symbols).shape],
+            },
+        )
+    if np.asarray(rx_meta.re_srs_positions).size:
+        extraction_index = next(index for index, stage in enumerate(stages) if stage["stage"] == "Resource element extraction")
+        stages.insert(
+            extraction_index + 1,
+            {
+                "section": "RX",
+                "stage": "SRS extraction",
+                "domain": "symbols",
+                "description": "SRS observations extracted from the received grid for uplink sounding and future reciprocity studies.",
+                "preview_kind": "constellation",
+                "data": rx_meta.re_srs_symbols,
+                "artifact_type": "constellation",
+                "input_shape": [int(dim) for dim in np.asarray(rx_meta.rx_grid).shape],
+                "output_shape": [int(dim) for dim in np.asarray(rx_meta.re_srs_symbols).shape],
+            },
+        )
+
     return _normalize_pipeline(stages)
 
 

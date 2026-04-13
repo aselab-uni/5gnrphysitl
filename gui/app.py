@@ -171,6 +171,8 @@ class NrPhyResearchApp(QMainWindow):
             "Perfect sync": "Yes" if bool(self.current_config.get("receiver", {}).get("perfect_sync", False)) else "No",
             "Perfect channel estimation": "Yes" if bool(self.current_config.get("receiver", {}).get("perfect_channel_estimation", False)) else "No",
             "Transform precoding": "Yes" if bool(self.current_config.get("uplink", {}).get("transform_precoding", False)) else "No",
+            "CSI-RS baseline": "Yes" if bool(self.current_config.get("reference_signals", {}).get("enable_csi_rs", True)) else "No",
+            "SRS baseline": "Yes" if bool(self.current_config.get("reference_signals", {}).get("enable_srs", True)) else "No",
         }
         tx_file = str(self.current_config.get("payload_io", {}).get("tx_file_path", "")).strip()
         if tx_file:
@@ -228,6 +230,10 @@ class NrPhyResearchApp(QMainWindow):
             notes.append("Perfect synchronization is enabled. This is a teaching simplification.")
         if bool(receiver.get("perfect_channel_estimation", False)):
             notes.append("Perfect channel estimation is enabled. DMRS estimation plots remain useful, but KPI values are optimistic.")
+        if bool(config.get("reference_signals", {}).get("enable_csi_rs", True)):
+            notes.append("Downlink CSI-RS baseline is enabled. CSI-RS REs are visible in the grid and extraction stages for future CSI/MIMO work.")
+        if bool(config.get("reference_signals", {}).get("enable_srs", True)):
+            notes.append("Uplink SRS baseline is enabled for uplink data paths. SRS REs are visible in the grid and extraction stages.")
         if str(link.get("direction", "downlink")).lower() == "uplink":
             channel_type = str(link.get("channel_type", "data")).lower()
             if channel_type == "prach":

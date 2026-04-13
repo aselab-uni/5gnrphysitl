@@ -1504,6 +1504,12 @@ Ready-made uplink PRACH baseline scenario:
 python main.py --config configs/default.yaml --override configs/scenario_uplink_prach_baseline.yaml --gui
 ```
 
+Reference-signal baseline:
+
+- `CSI-RS` is inserted on downlink data/control runs and exposed in the grid and extraction stages.
+- `SRS` is inserted on uplink data runs and exposed in the grid and extraction stages.
+- `DMRS` remains the primary estimator input in the current receiver.
+
 ### Launch GUI
 
 ```bash
@@ -1612,6 +1618,7 @@ python main.py --config configs/default.yaml --override configs/scenario_vehicul
 - Control-channel coding is polar-like and small-block focused, not full NR polar coding.
 - Resource allocation is slot-local and simplified; there is no full scheduler/DCI implementation.
 - Uplink support currently covers a `data` / `PUSCH-style` baseline, a minimal `control` / `PUCCH-style` baseline, and a `PRACH` preamble-detection baseline.
+- `CSI-RS` and `SRS` are baseline observability/reference-signal features, not full `38.211/38.214` procedure implementations.
 - DMRS patterns are NR-inspired but simplified.
 - Synchronization and CFO recovery are intentionally lightweight.
 - Fading, Doppler, phase noise, and IQ imbalance models are suitable for study/prototyping, not conformance.

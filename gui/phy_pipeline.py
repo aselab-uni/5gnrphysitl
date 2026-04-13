@@ -1191,11 +1191,15 @@ class PhyPipelinePanel(QWidget):
                     "Control RE count": int(np.sum(allocation_map == 1)),
                     "Data RE count": int(np.sum(allocation_map == 2)),
                     "DMRS RE count": int(np.sum(allocation_map == 3)),
+                    "CSI-RS RE count": int(np.sum(allocation_map == 4)),
+                    "SRS RE count": int(np.sum(allocation_map == 5)),
                 },
                 "artifacts": [
-                    {"name": "Allocation map", "kind": "grid", "payload": {"image": allocation_map, "lookup": "allocation", "levels": (0.0, 3.0)}, "description": "Heatmap showing control region, payload REs, and DMRS placement."},
+                    {"name": "Allocation map", "kind": "grid", "payload": {"image": allocation_map, "lookup": "allocation", "levels": (0.0, 5.0)}, "description": "Heatmap showing control region, payload REs, DMRS, CSI-RS, and SRS placement."},
                     {"name": "TX grid magnitude", "kind": "grid", "payload": {"image": np.abs(tx_meta.tx_grid), "lookup": "viridis"}, "description": "Magnitude of the populated resource grid after DMRS insertion."},
                     {"name": "DMRS mask", "kind": "grid", "payload": {"image": dmrs_mask, "lookup": "plasma", "levels": (0.0, 1.0)}, "description": "Binary mask of DMRS RE locations."},
+                    {"name": "CSI-RS mask", "kind": "grid", "payload": {"image": (allocation_map == 4.0).astype(np.float32), "lookup": "plasma", "levels": (0.0, 1.0)}, "description": "Binary mask of CSI-RS RE locations."},
+                    {"name": "SRS mask", "kind": "grid", "payload": {"image": (allocation_map == 5.0).astype(np.float32), "lookup": "plasma", "levels": (0.0, 1.0)}, "description": "Binary mask of SRS RE locations."},
                 ],
             },
             {
@@ -1295,12 +1299,16 @@ class PhyPipelinePanel(QWidget):
                 "metrics": {
                     "Data RE count": rx.re_data_positions.shape[0],
                     "DMRS RE count": rx.re_dmrs_positions.shape[0],
+                    "CSI-RS RE count": rx.re_csi_rs_positions.shape[0],
+                    "SRS RE count": rx.re_srs_positions.shape[0],
                     "RX grid shape": f"{rx.rx_grid.shape[0]} x {rx.rx_grid.shape[1]}",
                 },
                 "artifacts": [
                     {"name": "Data RE mask", "kind": "grid", "payload": {"image": data_re_mask, "lookup": "plasma", "levels": (0.0, 1.0)}, "description": "Binary mask of extracted payload RE locations."},
                     {"name": "Extracted data constellation", "kind": "constellation_compare", "payload": {"series": [{"name": "Data RE", "points": rx.re_data_symbols, "color": "#38bdf8", "symbol_indices": rx.re_data_positions[: rx.re_data_symbols.size, 0]}]}, "description": "Payload RE observations extracted from the RX grid before equalization."},
                     {"name": "Extracted DMRS symbols", "kind": "constellation_compare", "payload": {"series": [{"name": "DMRS RE", "points": rx.re_dmrs_symbols, "color": "#f59e0b", "symbol_indices": rx.re_dmrs_positions[: rx.re_dmrs_symbols.size, 0] if rx.re_dmrs_positions.size else np.array([], dtype=int)}]}, "description": "DMRS observations extracted from the RX grid."},
+                    {"name": "Extracted CSI-RS symbols", "kind": "constellation_compare", "payload": {"series": [{"name": "CSI-RS RE", "points": rx.re_csi_rs_symbols, "color": "#a855f7", "symbol_indices": rx.re_csi_rs_positions[: rx.re_csi_rs_symbols.size, 0] if rx.re_csi_rs_positions.size else np.array([], dtype=int)}]}, "description": "CSI-RS observations extracted from the RX grid."},
+                    {"name": "Extracted SRS symbols", "kind": "constellation_compare", "payload": {"series": [{"name": "SRS RE", "points": rx.re_srs_symbols, "color": "#10b981", "symbol_indices": rx.re_srs_positions[: rx.re_srs_symbols.size, 0] if rx.re_srs_positions.size else np.array([], dtype=int)}]}, "description": "SRS observations extracted from the RX grid."},
                 ],
             },
             {
@@ -1643,6 +1651,12 @@ class PhyPipelinePanel(QWidget):
         if dmrs_positions.size:
             allocation_map[dmrs_positions[:, 0], dmrs_positions[:, 1]] = 3.0
             dmrs_mask[dmrs_positions[:, 0], dmrs_positions[:, 1]] = 1.0
+        csi_rs_positions = tx_meta.csi_rs["positions"]
+        if csi_rs_positions.size:
+            allocation_map[csi_rs_positions[:, 0], csi_rs_positions[:, 1]] = 4.0
+        srs_positions = tx_meta.srs["positions"]
+        if srs_positions.size:
+            allocation_map[srs_positions[:, 0], srs_positions[:, 1]] = 5.0
         return allocation_map, dmrs_mask
 
     @staticmethod
@@ -1822,6 +1836,8 @@ class PhyPipelinePanel(QWidget):
                     [251, 191, 36, 255],
                     [56, 189, 248, 255],
                     [244, 114, 182, 255],
+                    [168, 85, 247, 255],
+                    [16, 185, 129, 255],
                 ],
                 dtype=np.ubyte,
             )
