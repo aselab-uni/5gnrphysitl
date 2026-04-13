@@ -962,6 +962,38 @@ class PhyPipelinePanel(QWidget):
             positions=positions,
             data_re_mask=data_re_mask,
         )
+        if direction == "downlink" and tx_meta.channel_type in {"control", "pdcch"}:
+            from phy.resource_grid import ResourceGrid
+
+            helper = ResourceGrid(numerology, tx_meta.allocation, spatial_layout=tx_meta.spatial_layout)
+            coreset_mask = helper.coreset_re_mask().astype(np.float32)
+            search_space_mask = helper.search_space_re_mask().astype(np.float32)
+            insertion_index = next(
+                (index for index, stage in enumerate(stages) if stage.get("key") == "resource_grid_dmrs"),
+                len(stages),
+            )
+            stages.insert(
+                insertion_index,
+                {
+                    "key": "coreset_searchspace",
+                    "section": "TX",
+                    "flow_label": "CORESET",
+                    "title": "CORESET / SearchSpace Selection",
+                    "description": "Downlink control baseline constrains PDCCH mapping to a configurable CORESET and monitored SearchSpace subset before RE mapping.",
+                    "metrics": {
+                        "CORESET start symbol": int(tx_meta.allocation.coreset_start_symbol),
+                        "CORESET symbol count": int(tx_meta.allocation.coreset_symbol_count),
+                        "CORESET subcarriers": int(tx_meta.allocation.coreset_subcarriers),
+                        "SearchSpace stride": int(tx_meta.allocation.search_space_stride),
+                        "SearchSpace offset": int(tx_meta.allocation.search_space_offset),
+                        "Monitored RE count": int(np.sum(search_space_mask)),
+                    },
+                    "artifacts": [
+                        {"name": "CORESET mask", "kind": "grid", "payload": {"image": coreset_mask, "lookup": "plasma", "levels": (0.0, 1.0)}, "description": "Binary mask of the configured CORESET region."},
+                        {"name": "SearchSpace mask", "kind": "grid", "payload": {"image": search_space_mask, "lookup": "plasma", "levels": (0.0, 1.0)}, "description": "Binary mask of monitored SearchSpace REs inside the CORESET."},
+                    ],
+                },
+            )
         transfer = result.get("file_transfer")
         if transfer:
             stages = [*self._file_transfer_entry_stages(result), *stages, *self._file_transfer_exit_stages(result)]
@@ -1187,6 +1219,8 @@ class PhyPipelinePanel(QWidget):
                 "title": "Resource Grid + DMRS",
                 "description": f"Mapped {mapping_label} symbols are placed onto the NR-like resource grid. DMRS is inserted on configured OFDM symbols for channel estimation.",
                 "metrics": {
+                    "CORESET RE count": int(np.sum(allocation_map == 1)),
+                    "SearchSpace / mapped control RE count": int(np.sum(allocation_map == 2)) if tx_meta.channel_type in {"control", "pdcch"} and direction == "downlink" else 0,
                     "Grid shape": f"{tx_meta.tx_grid.shape[0]} x {tx_meta.tx_grid.shape[1]}",
                     "Control RE count": int(np.sum(allocation_map == 1)),
                     "Data RE count": int(np.sum(allocation_map == 2)),
@@ -1195,7 +1229,7 @@ class PhyPipelinePanel(QWidget):
                     "SRS RE count": int(np.sum(allocation_map == 5)),
                 },
                 "artifacts": [
-                    {"name": "Allocation map", "kind": "grid", "payload": {"image": allocation_map, "lookup": "allocation", "levels": (0.0, 5.0)}, "description": "Heatmap showing control region, payload REs, DMRS, CSI-RS, and SRS placement."},
+                    {"name": "Allocation map", "kind": "grid", "payload": {"image": allocation_map, "lookup": "allocation", "levels": (0.0, 5.0)}, "description": "Heatmap showing CORESET, scheduled payload/control REs, DMRS, CSI-RS, and SRS placement."},
                     {"name": "TX grid magnitude", "kind": "grid", "payload": {"image": np.abs(tx_meta.tx_grid), "lookup": "viridis"}, "description": "Magnitude of the populated resource grid after DMRS insertion."},
                     {"name": "DMRS mask", "kind": "grid", "payload": {"image": dmrs_mask, "lookup": "plasma", "levels": (0.0, 1.0)}, "description": "Binary mask of DMRS RE locations."},
                     {"name": "CSI-RS mask", "kind": "grid", "payload": {"image": (allocation_map == 4.0).astype(np.float32), "lookup": "plasma", "levels": (0.0, 1.0)}, "description": "Binary mask of CSI-RS RE locations."},
@@ -1639,10 +1673,13 @@ class PhyPipelinePanel(QWidget):
         tx_meta = result["tx"].metadata
         numerology = tx_meta.numerology
         allocation_map = np.zeros((numerology.symbols_per_slot, numerology.active_subcarriers), dtype=np.float32)
-        allocation = tx_meta.allocation
-        if str(getattr(tx_meta, "direction", "downlink")).lower() == "downlink":
-            for symbol in allocation.pdcch_symbols:
-                allocation_map[symbol, : allocation.control_subcarriers] = 1.0
+        if str(getattr(tx_meta, "direction", "downlink")).lower() == "downlink" and str(getattr(tx_meta, "channel_type", "data")).lower() in {"control", "pdcch"}:
+            from phy.resource_grid import ResourceGrid
+
+            helper = ResourceGrid(numerology, tx_meta.allocation, spatial_layout=tx_meta.spatial_layout)
+            coreset_positions = helper.coreset_positions()
+            if coreset_positions.size:
+                allocation_map[coreset_positions[:, 0], coreset_positions[:, 1]] = 1.0
         positions = tx_meta.mapping.positions
         if positions.size:
             allocation_map[positions[:, 0], positions[:, 1]] = 2.0
@@ -1833,6 +1870,7 @@ class PhyPipelinePanel(QWidget):
             lut = np.array(
                 [
                     [15, 23, 42, 255],
+                    [14, 165, 233, 255],
                     [251, 191, 36, 255],
                     [56, 189, 248, 255],
                     [244, 114, 182, 255],

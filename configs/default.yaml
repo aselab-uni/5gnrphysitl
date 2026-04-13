@@ -41,6 +41,11 @@ frame:
   pusch_start_symbol: 2
   pucch_symbol_count: 2
   prach_symbol_count: 1
+  coreset_start_symbol: 0
+  coreset_symbol_count: 2
+  coreset_subcarriers: 72
+  search_space_stride: 2
+  search_space_offset: 0
   csi_rs_symbols: [12]
   srs_symbols: [13]
   rs_comb: 4

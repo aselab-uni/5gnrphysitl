@@ -21,12 +21,19 @@ class FrameAllocation:
     rs_comb: int
     csi_rs_subcarrier_offset: int
     srs_subcarrier_offset: int
+    coreset_start_symbol: int
+    coreset_symbol_count: int
+    coreset_subcarriers: int
+    search_space_stride: int
+    search_space_offset: int
     dmrs_symbols: List[int]
     control_subcarriers: int
 
     @property
     def pdcch_symbols(self) -> List[int]:
-        return list(range(self.control_symbols))
+        start = max(0, int(self.coreset_start_symbol))
+        count = max(1, int(self.coreset_symbol_count))
+        return list(range(start, start + count))
 
     def pdsch_symbols(self, numerology: NumerologyConfig) -> List[int]:
         return [
@@ -73,10 +80,15 @@ def build_default_allocation(numerology: NumerologyConfig, config: dict) -> Fram
     rs_comb = int(frame_cfg.get("rs_comb", 4))
     csi_rs_subcarrier_offset = int(frame_cfg.get("csi_rs_subcarrier_offset", 1))
     srs_subcarrier_offset = int(frame_cfg.get("srs_subcarrier_offset", 2))
-    dmrs_symbols = list(frame_cfg.get("dmrs_symbols", [2, 11]))
     control_subcarriers = int(
         frame_cfg.get("control_subcarriers", min(72, numerology.active_subcarriers))
     )
+    coreset_start_symbol = int(frame_cfg.get("coreset_start_symbol", 0))
+    coreset_symbol_count = int(frame_cfg.get("coreset_symbol_count", control_symbols))
+    coreset_subcarriers = int(frame_cfg.get("coreset_subcarriers", control_subcarriers))
+    search_space_stride = int(frame_cfg.get("search_space_stride", 1))
+    search_space_offset = int(frame_cfg.get("search_space_offset", 0))
+    dmrs_symbols = list(frame_cfg.get("dmrs_symbols", [2, 11]))
     prach_subcarriers = int(
         frame_cfg.get("prach_subcarriers", min(72, numerology.active_subcarriers))
     )
@@ -92,6 +104,17 @@ def build_default_allocation(numerology: NumerologyConfig, config: dict) -> Fram
         rs_comb=max(1, rs_comb),
         csi_rs_subcarrier_offset=max(0, csi_rs_subcarrier_offset),
         srs_subcarrier_offset=max(0, srs_subcarrier_offset),
+        coreset_start_symbol=max(0, min(coreset_start_symbol, numerology.symbols_per_slot - 1)),
+        coreset_symbol_count=max(
+            1,
+            min(
+                coreset_symbol_count,
+                numerology.symbols_per_slot - max(0, min(coreset_start_symbol, numerology.symbols_per_slot - 1)),
+            ),
+        ),
+        coreset_subcarriers=max(12, min(coreset_subcarriers, numerology.active_subcarriers)),
+        search_space_stride=max(1, search_space_stride),
+        search_space_offset=max(0, search_space_offset),
         dmrs_symbols=[symbol for symbol in dmrs_symbols if 0 <= symbol < numerology.symbols_per_slot],
         control_subcarriers=max(12, min(control_subcarriers, numerology.active_subcarriers)),
     )

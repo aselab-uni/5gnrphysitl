@@ -122,6 +122,7 @@ class PlotPanel(QWidget):
         allocation_lut = np.array(
             [
                 [15, 23, 42, 255],
+                [14, 165, 233, 255],
                 [56, 189, 248, 255],
                 [251, 191, 36, 255],
                 [168, 85, 247, 255],
@@ -130,7 +131,7 @@ class PlotPanel(QWidget):
             dtype=np.ubyte,
         )
         self.tx_allocation_image.setLookupTable(allocation_lut)
-        self.tx_allocation_image.setLevels((0, 4))
+        self.tx_allocation_image.setLevels((0, 5))
 
         self.tx_grid_plot = self.grid_graphics.addPlot(row=0, col=1, title="TX grid magnitude")
         self._style_plot(self.tx_grid_plot)
@@ -254,18 +255,25 @@ class PlotPanel(QWidget):
             (numerology.symbols_per_slot, numerology.active_subcarriers),
             dtype=np.float32,
         )
+        if str(tx.metadata.direction).lower() == "downlink" and str(tx.metadata.channel_type).lower() in {"control", "pdcch"}:
+            from phy.resource_grid import ResourceGrid
+
+            helper = ResourceGrid(numerology, tx.metadata.allocation, spatial_layout=tx.metadata.spatial_layout)
+            coreset_positions = helper.coreset_positions()
+            if coreset_positions.size:
+                allocation_map[coreset_positions[:, 0], coreset_positions[:, 1]] = 1.0
         mapping_positions = tx.metadata.mapping.positions
         if mapping_positions.size:
-            allocation_map[mapping_positions[:, 0], mapping_positions[:, 1]] = 1.0
+            allocation_map[mapping_positions[:, 0], mapping_positions[:, 1]] = 2.0
         dmrs_positions = tx.metadata.dmrs["positions"]
         if dmrs_positions.size:
-            allocation_map[dmrs_positions[:, 0], dmrs_positions[:, 1]] = 2.0
+            allocation_map[dmrs_positions[:, 0], dmrs_positions[:, 1]] = 3.0
         csi_rs_positions = tx.metadata.csi_rs["positions"]
         if csi_rs_positions.size:
-            allocation_map[csi_rs_positions[:, 0], csi_rs_positions[:, 1]] = 3.0
+            allocation_map[csi_rs_positions[:, 0], csi_rs_positions[:, 1]] = 4.0
         srs_positions = tx.metadata.srs["positions"]
         if srs_positions.size:
-            allocation_map[srs_positions[:, 0], srs_positions[:, 1]] = 4.0
+            allocation_map[srs_positions[:, 0], srs_positions[:, 1]] = 5.0
         return allocation_map
 
     @staticmethod

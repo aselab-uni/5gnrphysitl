@@ -1510,6 +1510,12 @@ Reference-signal baseline:
 - `SRS` is inserted on uplink data runs and exposed in the grid and extraction stages.
 - `DMRS` remains the primary estimator input in the current receiver.
 
+Downlink control realism baseline:
+
+- `PDCCH` now maps inside a configurable `CORESET`.
+- `SearchSpace` is modeled as a monitored subset of CORESET REs using a configurable stride/offset baseline.
+- The `PHY Pipeline` exposes `CORESET / SearchSpace Selection` as an explicit stage for downlink control runs.
+
 ### Launch GUI
 
 ```bash
@@ -1619,6 +1625,7 @@ python main.py --config configs/default.yaml --override configs/scenario_vehicul
 - Resource allocation is slot-local and simplified; there is no full scheduler/DCI implementation.
 - Uplink support currently covers a `data` / `PUSCH-style` baseline, a minimal `control` / `PUCCH-style` baseline, and a `PRACH` preamble-detection baseline.
 - `CSI-RS` and `SRS` are baseline observability/reference-signal features, not full `38.211/38.214` procedure implementations.
+- `CORESET / SearchSpace` support is a baseline control-region model, not a full `38.213` candidate-monitoring implementation.
 - DMRS patterns are NR-inspired but simplified.
 - Synchronization and CFO recovery are intentionally lightweight.
 - Fading, Doppler, phase noise, and IQ imbalance models are suitable for study/prototyping, not conformance.

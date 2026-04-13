@@ -14,6 +14,9 @@ def test_resource_grid_positions_are_non_empty() -> None:
     allocation = build_default_allocation(numerology, config)
     grid = ResourceGrid(numerology, allocation)
     assert grid.pdcch_positions().shape[0] > 0
+    assert grid.coreset_positions().shape[0] > 0
+    assert grid.search_space_positions().shape[0] > 0
+    assert grid.pdcch_positions().shape[0] <= grid.coreset_positions().shape[0]
     assert grid.pdsch_positions().shape[0] > 0
     assert grid.pusch_positions().shape[0] > 0
     assert grid.pucch_positions().shape[0] > 0
@@ -55,10 +58,13 @@ def test_resource_grid_exposes_tensor_views_and_preserves_legacy_grid() -> None:
     assert specs["rx_grid_tensor"]["shape"] == [2, numerology.symbols_per_slot, numerology.active_subcarriers]
 
     masks = grid.re_masks()
-    assert set(masks) == {"control", "dmrs", "data", "prach", "csi_rs", "srs"}
+    assert set(masks) == {"control", "coreset", "search_space", "dmrs", "data", "prach", "csi_rs", "srs"}
     assert masks["control"].shape == grid.shape
+    assert masks["coreset"].shape == grid.shape
+    assert masks["search_space"].shape == grid.shape
     assert masks["dmrs"].shape == grid.shape
     assert masks["data"].shape == grid.shape
     assert masks["prach"].shape == grid.shape
     assert masks["csi_rs"].shape == grid.shape
     assert masks["srs"].shape == grid.shape
+    assert np.sum(masks["search_space"]) <= np.sum(masks["coreset"])

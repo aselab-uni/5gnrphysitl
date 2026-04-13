@@ -46,6 +46,14 @@ def validate_config(config: dict) -> dict:
         raise ValueError("frame.prach_subcarriers must be at least 12.")
     if int(frame.get("rs_comb", 1)) < 1:
         raise ValueError("frame.rs_comb must be at least 1.")
+    if int(frame.get("coreset_symbol_count", 1)) < 1:
+        raise ValueError("frame.coreset_symbol_count must be at least 1.")
+    if int(frame.get("coreset_subcarriers", 12)) < 12:
+        raise ValueError("frame.coreset_subcarriers must be at least 12.")
+    if int(frame.get("search_space_stride", 1)) < 1:
+        raise ValueError("frame.search_space_stride must be at least 1.")
+    if int(frame.get("search_space_offset", 0)) < 0:
+        raise ValueError("frame.search_space_offset must be non-negative.")
 
     reference_signals = config.get("reference_signals", {})
     if int(reference_signals.get("sequence_seed", 0)) < 0:

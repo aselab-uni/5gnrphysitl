@@ -244,6 +244,11 @@ class NrPhyResearchApp(QMainWindow):
                 notes.append("Uplink baseline is active with transform precoding enabled. The PHY Pipeline includes transform precoding and inverse transform stages.")
             else:
                 notes.append("Uplink baseline is active in CP-OFDM mode. Enable transform precoding to inspect a DFT-s-OFDM style PUSCH path.")
+        elif str(link.get("channel_type", "data")).lower() in {"control", "pdcch"}:
+            notes.append(
+                "Downlink control baseline is active with explicit CORESET/SearchSpace configuration. "
+                "Only monitored SearchSpace REs inside the CORESET are used for PDCCH-style mapping."
+            )
         if bool(simulation.get("use_gnuradio", False)):
             if HAVE_GNURADIO:
                 notes.append("GNU Radio loopback is requested and QT sinks can be launched from the GUI.")

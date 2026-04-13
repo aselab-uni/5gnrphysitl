@@ -92,11 +92,28 @@ class ResourceGrid:
         return {name: spec.as_dict() for name, spec in self.tensor_view_specs().items()}
 
     def pdcch_positions(self) -> np.ndarray:
+        return self.search_space_positions()
+
+    def coreset_positions(self) -> np.ndarray:
         positions = []
         for symbol in self.allocation.pdcch_symbols:
-            for sc in range(self.allocation.control_subcarriers):
+            if not (0 <= symbol < self.numerology.symbols_per_slot):
+                continue
+            for sc in range(self.allocation.coreset_subcarriers):
                 positions.append((symbol, sc))
         return np.asarray(positions, dtype=int)
+
+    def search_space_positions(self) -> np.ndarray:
+        coreset = self.coreset_positions()
+        if not coreset.size:
+            return np.zeros((0, 2), dtype=int)
+        stride = max(1, int(self.allocation.search_space_stride))
+        offset = int(self.allocation.search_space_offset) % stride
+        mask = (np.arange(coreset.shape[0]) % stride) == offset
+        selected = coreset[mask]
+        if not selected.size:
+            selected = coreset[:1]
+        return selected.astype(int, copy=False)
 
     def dmrs_positions(self) -> np.ndarray:
         positions = []
@@ -166,6 +183,20 @@ class ResourceGrid:
             mask[positions[:, 0], positions[:, 1]] = 1
         return mask
 
+    def coreset_re_mask(self) -> np.ndarray:
+        mask = np.zeros(self.shape, dtype=np.uint8)
+        positions = self.coreset_positions()
+        if positions.size:
+            mask[positions[:, 0], positions[:, 1]] = 1
+        return mask
+
+    def search_space_re_mask(self) -> np.ndarray:
+        mask = np.zeros(self.shape, dtype=np.uint8)
+        positions = self.search_space_positions()
+        if positions.size:
+            mask[positions[:, 0], positions[:, 1]] = 1
+        return mask
+
     def dmrs_re_mask(self) -> np.ndarray:
         mask = np.zeros(self.shape, dtype=np.uint8)
         positions = self.dmrs_positions()
@@ -183,6 +214,8 @@ class ResourceGrid:
     def re_masks(self, *, direction: str = "downlink") -> Dict[str, np.ndarray]:
         return {
             "control": self.control_re_mask(),
+            "coreset": self.coreset_re_mask(),
+            "search_space": self.search_space_re_mask(),
             "dmrs": self.dmrs_re_mask(),
             "data": self.data_re_mask(direction=direction),
             "prach": self.prach_re_mask(),

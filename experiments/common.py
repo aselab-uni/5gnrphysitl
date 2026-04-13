@@ -14,6 +14,7 @@ from phy.artifacts import normalize_pipeline_stage
 from phy.context import SlotContext
 from phy.kpi import LinkKpiSummary, bit_error_rate, spectral_efficiency_bps_hz
 from phy.receiver import NrReceiver
+from phy.resource_grid import ResourceGrid
 from phy.transmitter import NrTransmitter
 from utils.file_transfer import (
     build_file_payload_package,
@@ -213,7 +214,7 @@ def _build_pipeline_trace(
     if direction == "uplink":
         mapping_label = "PUCCH-style" if tx_meta.channel_type in {"control", "pucch"} else "PUSCH-style"
     else:
-        mapping_label = "PDCCH-style" if tx_meta.channel_type in {"control", "pdcch"} else "PDSCH-style"
+        mapping_label = "PDCCH/CORESET-style" if tx_meta.channel_type in {"control", "pdcch"} else "PDSCH-style"
     coding_meta = tx_meta.coding_metadata
     transport_with_crc = (
         np.asarray(coding_meta.transport_block_with_crc, dtype=np.uint8)
@@ -517,6 +518,29 @@ def _build_pipeline_trace(
             "output_shape": [int(dim) for dim in np.asarray(rx_meta.recovered_bits).shape],
         },
     ]
+
+    if direction == "downlink" and tx_meta.channel_type in {"control", "pdcch"}:
+        helper = ResourceGrid(tx_meta.numerology, tx_meta.allocation, spatial_layout=tx_meta.spatial_layout)
+        coreset_mask = helper.coreset_re_mask().astype(np.float32)
+        search_space_mask = helper.search_space_re_mask().astype(np.float32)
+        stages.insert(
+            6,
+            {
+                "section": "TX",
+                "stage": "CORESET / SearchSpace selection",
+                "domain": "grid",
+                "description": "PDCCH mapping is constrained to a configurable CORESET and monitored SearchSpace subset.",
+                "preview_kind": "grid",
+                "data": search_space_mask,
+                "artifact_type": "grid",
+                "input_shape": [int(dim) for dim in np.asarray(tx_meta.scrambled_bits).shape],
+                "output_shape": [int(dim) for dim in np.asarray(search_space_mask).shape],
+                "notes": (
+                    f"CORESET RE count: {int(np.sum(coreset_mask))} | "
+                    f"SearchSpace RE count: {int(np.sum(search_space_mask))}"
+                ),
+            },
+        )
 
     if bool(getattr(tx_meta, "transform_precoding_enabled", False)):
         stages.insert(
