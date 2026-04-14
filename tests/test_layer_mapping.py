@@ -8,6 +8,8 @@ import numpy as np
 
 from experiments.common import simulate_link
 from phy.layer_mapping import combine_layer_symbols, layer_map_symbols
+from phy.precoding import apply_precoder, build_precoder, recover_layers_from_ports
+from phy.types import SpatialLayout
 from utils.io import load_yaml
 from utils.validators import validate_config
 
@@ -24,6 +26,7 @@ def _layer_config() -> dict:
     config["spatial"]["num_ports"] = 2
     config["spatial"]["num_tx_antennas"] = 2
     config["spatial"]["num_rx_antennas"] = 2
+    config["precoding"]["mode"] = "dft"
     return config
 
 
@@ -44,6 +47,9 @@ def test_two_layer_baseline_runs_end_to_end() -> None:
 
     assert tx.waveform.ndim == 2
     assert tx.waveform.shape[0] == 2
+    assert tx.metadata.precoding_mode == "dft"
+    assert tx.metadata.precoder_matrix.shape == (2, 2)
+    assert tx.metadata.tx_port_symbols.shape[0] == 2
     assert tx.metadata.tx_layer_symbols.shape[0] == 2
     assert tx.metadata.tx_layer_grid.shape[0] == 2
     assert tx.metadata.tx_port_grid.shape[0] == 2
@@ -55,6 +61,21 @@ def test_two_layer_baseline_runs_end_to_end() -> None:
     assert rx.detected_symbols.shape == tx.metadata.modulation_symbols.shape
     assert rx.crc_ok is True
     assert result["kpis"].ber == 0.0
+
+
+def test_precoder_round_trips_layers_under_pseudoinverse() -> None:
+    layout = SpatialLayout(num_layers=2, num_ports=2, num_tx_antennas=2, num_rx_antennas=2)
+    precoder = build_precoder({"precoding": {"mode": "dft"}}, layout)
+    layer_symbols = np.asarray(
+        [
+            [1.0 + 0.0j, 2.0 + 0.0j, 3.0 + 0.0j],
+            [4.0 + 0.0j, 5.0 + 0.0j, 6.0 + 0.0j],
+        ],
+        dtype=np.complex128,
+    )
+    port_symbols = apply_precoder(layer_symbols, precoder.matrix)
+    recovered = recover_layers_from_ports(port_symbols, precoder.matrix)
+    np.testing.assert_allclose(recovered, layer_symbols)
 
 
 def test_phy_pipeline_panel_shows_layer_mapping_artifacts() -> None:
@@ -76,5 +97,9 @@ def test_phy_pipeline_panel_shows_layer_mapping_artifacts() -> None:
     assert "Per-layer constellation" in artifact_names
     assert "Layer 0 occupancy" in artifact_names
     assert "Layer 1 occupancy" in artifact_names
+    precoding_stage = next(stage for stage in panel.stages if stage["key"] == "precoding_port_mapping")
+    recovery_stage = next(stage for stage in panel.stages if stage["key"] == "layer_recovery")
+    assert "Per-port power" in [artifact["name"] for artifact in precoding_stage["artifacts"]]
+    assert "Effective channel magnitude" in [artifact["name"] for artifact in recovery_stage["artifacts"]]
     panel.deleteLater()
     app.processEvents()

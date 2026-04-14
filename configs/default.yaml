@@ -35,6 +35,9 @@ spatial:
   num_tx_antennas: 1
   num_rx_antennas: 1
 
+precoding:
+  mode: identity
+
 frame:
   control_symbols: 2
   pdsch_start_symbol: 2

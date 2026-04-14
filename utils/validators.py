@@ -30,6 +30,9 @@ def validate_config(config: dict) -> dict:
     for key in ("num_codewords", "num_layers", "num_ports", "num_tx_antennas", "num_rx_antennas"):
         if int(spatial.get(key, 1)) < 1:
             raise ValueError(f"spatial.{key} must be at least 1.")
+    precoding = config.get("precoding", {})
+    if str(precoding.get("mode", "identity")).lower() not in {"identity", "dft"}:
+        raise ValueError("precoding.mode must be one of: identity, dft.")
 
     coding = config.get("coding", {})
     if int(coding.get("code_block_payload_bits", 1)) < 1:

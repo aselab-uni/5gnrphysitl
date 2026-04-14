@@ -337,7 +337,22 @@ def _build_pipeline_trace(
             "notes": (
                 f"Layers: {int(tx_meta.spatial_layout.num_layers)} | "
                 f"Ports: {int(tx_meta.spatial_layout.num_ports)} | "
-                f"Current P2 baseline uses identity layer-to-port mapping."
+                f"Precoding mode: {getattr(tx_meta, 'precoding_mode', 'identity')}"
+            ),
+        },
+        {
+            "section": "TX",
+            "stage": "Precoding / port mapping",
+            "domain": "grid",
+            "description": "Layer-domain symbols are transformed into port-domain signals through the configured linear precoder before OFDM modulation.",
+            "preview_kind": "grid",
+            "data": np.abs(tx_meta.tx_port_grid[0]) if tx_meta.tx_port_grid.size else np.zeros((0, 0), dtype=np.float64),
+            "artifact_type": "grid",
+            "input_shape": [int(dim) for dim in np.asarray(tx_meta.tx_layer_grid).shape],
+            "output_shape": [int(dim) for dim in np.asarray(tx_meta.tx_port_grid).shape],
+            "notes": (
+                f"Precoding mode: {getattr(tx_meta, 'precoding_mode', 'identity')} | "
+                f"Matrix shape: {list(np.asarray(getattr(tx_meta, 'precoder_matrix', np.eye(1))).shape)}"
             ),
         },
         {
@@ -486,6 +501,17 @@ def _build_pipeline_trace(
             "artifact_type": "constellation",
             "input_shape": [int(dim) for dim in np.asarray(rx_meta.rx_symbols).shape],
             "output_shape": [int(dim) for dim in np.asarray(rx_meta.equalized_symbols).shape],
+        },
+        {
+            "section": "RX",
+            "stage": "Layer recovery / de-precoding",
+            "domain": "symbols",
+            "description": "Equalized port-domain symbols are projected back into the layer domain through the pseudo-inverse of the configured precoder.",
+            "preview_kind": "constellation",
+            "data": rx_meta.equalized_symbols,
+            "artifact_type": "constellation",
+            "input_shape": [int(dim) for dim in np.asarray(rx_meta.equalized_port_symbols).shape],
+            "output_shape": [int(dim) for dim in np.asarray(rx_meta.equalized_layer_symbols).shape],
         },
         {
             "section": "RX",

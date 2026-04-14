@@ -381,21 +381,31 @@ class ResourceGrid:
         self,
         layer_symbols: np.ndarray,
         positions: np.ndarray,
+        *,
+        port_symbols: np.ndarray | None = None,
     ) -> None:
         layer_matrix = np.asarray(layer_symbols, dtype=np.complex128)
         if layer_matrix.ndim != 2:
             raise ValueError("layer_symbols must have shape (layer, symbol_index).")
         positions = np.asarray(positions, dtype=int)
-        max_layers = min(layer_matrix.shape[0], self.layer_grid.shape[0], self.port_grid.shape[0])
+        max_layers = min(layer_matrix.shape[0], self.layer_grid.shape[0])
         if max_layers <= 0 or positions.size == 0:
             return
         for layer_index in range(max_layers):
-            self.map_symbols(
-                layer_matrix[layer_index],
-                positions,
-                layer=layer_index,
-                port=layer_index,
-            )
+            count = min(layer_matrix.shape[1], positions.shape[0])
+            if count > 0:
+                self.layer_grid[layer_index, positions[:count, 0], positions[:count, 1]] = layer_matrix[layer_index, :count]
+        if port_symbols is None:
+            port_matrix = layer_matrix
+        else:
+            port_matrix = np.asarray(port_symbols, dtype=np.complex128)
+            if port_matrix.ndim != 2:
+                raise ValueError("port_symbols must have shape (port, symbol_index).")
+        max_ports = min(port_matrix.shape[0], self.port_grid.shape[0])
+        for port_index in range(max_ports):
+            count = min(port_matrix.shape[1], positions.shape[0])
+            if count > 0:
+                self.port_grid[port_index, positions[:count, 0], positions[:count, 1]] = port_matrix[port_index, :count]
 
     def extract_symbols(self, positions: np.ndarray, *, domain: str = "port", index: int = 0) -> np.ndarray:
         positions = np.asarray(positions, dtype=int)

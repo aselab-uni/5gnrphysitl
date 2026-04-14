@@ -18,6 +18,7 @@ from .kpi import (
     spectral_efficiency_bps_hz,
     throughput_bps,
 )
+from .precoding import recover_layers_from_ports
 from .prach import detect_prach_preamble, preamble_id_to_bits
 from .resource_grid import ResourceGrid
 from .scrambling import descramble_llrs
@@ -51,6 +52,8 @@ class RxResult:
     re_ssb_symbols: np.ndarray
     re_pbch_dmrs_positions: np.ndarray
     re_pbch_dmrs_symbols: np.ndarray
+    rx_port_symbols: np.ndarray
+    equalized_port_symbols: np.ndarray
     rx_layer_symbols: np.ndarray
     equalized_layer_symbols: np.ndarray
     detected_layer_symbols: np.ndarray
@@ -233,6 +236,8 @@ class NrReceiver:
             re_ssb_symbols=np.array([], dtype=np.complex128),
             re_pbch_dmrs_positions=np.zeros((0, 2), dtype=int),
             re_pbch_dmrs_symbols=np.array([], dtype=np.complex128),
+            rx_port_symbols=equalized.reshape(1, -1),
+            equalized_port_symbols=equalized.reshape(1, -1),
             rx_layer_symbols=equalized.reshape(1, -1),
             equalized_layer_symbols=equalized.reshape(1, -1),
             detected_layer_symbols=equalized.reshape(1, -1),
@@ -327,19 +332,20 @@ class NrReceiver:
             channel_est_mse = channel_mse(h_full, reference)
 
         positions = tx_metadata.mapping.positions
-        layer_count = min(int(tx_metadata.spatial_layout.num_layers), int(rx_grid_tensor.shape[0]))
+        port_count = min(int(tx_metadata.spatial_layout.num_ports), int(rx_grid_tensor.shape[0]))
+        layer_count = min(int(tx_metadata.spatial_layout.num_layers), int(tx_metadata.precoder_matrix.shape[1]))
         repeated_positions = expand_positions_for_layers(
             positions,
             layer_count,
             total_symbols=tx_metadata.modulation_symbols.size,
         )
-        rx_layer_symbols = np.stack(
+        rx_port_symbols = np.stack(
             [
-                rx_grid_tensor[layer_index, positions[:, 0], positions[:, 1]]
-                for layer_index in range(layer_count)
+                rx_grid_tensor[port_index, positions[:, 0], positions[:, 1]]
+                for port_index in range(port_count)
             ],
             axis=0,
-        ) if positions.size and layer_count > 0 else np.zeros((layer_count, 0), dtype=np.complex128)
+        ) if positions.size and port_count > 0 else np.zeros((port_count, 0), dtype=np.complex128)
         dmrs_positions = effective_dmrs_positions
         re_dmrs_symbols = (
             rx_grid[dmrs_positions[:, 0], dmrs_positions[:, 1]]
@@ -378,27 +384,33 @@ class NrReceiver:
         )
         h_symbols = h_full[positions[:, 0], positions[:, 1]]
         noise_variance = float(channel_state.get("noise_variance", 1e-3))
-        equalized_layer_symbols = np.stack(
+        equalized_port_symbols = np.stack(
             [
                 equalize(
-                    rx_symbols=rx_layer_symbols[layer_index],
+                    rx_symbols=rx_port_symbols[port_index],
                     channel_estimate=h_symbols,
                     noise_variance=noise_variance,
                     mode=str(receiver_cfg.get("equalizer", "mmse")),
                 )
-                for layer_index in range(layer_count)
+                for port_index in range(port_count)
             ],
             axis=0,
-        ) if layer_count > 0 else np.zeros((0, positions.shape[0]), dtype=np.complex128)
+        ) if port_count > 0 else np.zeros((0, positions.shape[0]), dtype=np.complex128)
+        if equalized_port_symbols.size:
+            recovered_layer_symbols = recover_layers_from_ports(equalized_port_symbols, tx_metadata.precoder_matrix)
+        else:
+            recovered_layer_symbols = np.zeros((layer_count, positions.shape[0]), dtype=np.complex128)
         detected_layer_symbols = np.stack(
             [
-                remove_transform_precoding(equalized_layer_symbols[layer_index])
+                remove_transform_precoding(recovered_layer_symbols[layer_index])
                 if bool(tx_metadata.transform_precoding_enabled) and str(tx_metadata.direction).lower() == "uplink"
-                else equalized_layer_symbols[layer_index].copy()
+                else recovered_layer_symbols[layer_index].copy()
                 for layer_index in range(layer_count)
             ],
             axis=0,
         ) if layer_count > 0 else np.zeros((0, positions.shape[0]), dtype=np.complex128)
+        rx_layer_symbols = recover_layers_from_ports(rx_port_symbols, tx_metadata.precoder_matrix) if rx_port_symbols.size else np.zeros((layer_count, positions.shape[0]), dtype=np.complex128)
+        equalized_layer_symbols = recovered_layer_symbols
         rx_symbols = combine_layer_symbols(rx_layer_symbols, total_symbols=tx_metadata.modulation_symbols.size)
         equalized = combine_layer_symbols(equalized_layer_symbols, total_symbols=tx_metadata.modulation_symbols.size)
         detected_symbols = combine_layer_symbols(detected_layer_symbols, total_symbols=tx_metadata.modulation_symbols.size)
@@ -502,6 +514,8 @@ class NrReceiver:
             re_ssb_symbols=re_ssb_symbols,
             re_pbch_dmrs_positions=pbch_dmrs_positions,
             re_pbch_dmrs_symbols=re_pbch_dmrs_symbols,
+            rx_port_symbols=rx_port_symbols,
+            equalized_port_symbols=equalized_port_symbols,
             rx_layer_symbols=rx_layer_symbols,
             equalized_layer_symbols=equalized_layer_symbols,
             detected_layer_symbols=detected_layer_symbols,

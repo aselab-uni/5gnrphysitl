@@ -8,6 +8,9 @@ spatial:
   num_tx_antennas: 2
   num_rx_antennas: 2
 
+precoding:
+  mode: dft
+
 channel:
   model: awgn
   snr_db: 40.0

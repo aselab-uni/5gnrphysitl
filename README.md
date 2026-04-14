@@ -1521,10 +1521,10 @@ python main.py --config configs/default.yaml --override configs/scenario_su_mimo
 Current scope of this `P2-1` baseline:
 
 - `1 codeword`
-- `2 layers / 2 ports / 2 TX / 2 RX` identity layer-to-port mapping
+- `2 layers / 2 ports / 2 TX / 2 RX` with a baseline linear precoder (`identity` or `dft`)
 - independent per-port propagation through the existing software channel path
-- per-layer constellation and occupancy exposed in `PHY Pipeline`
-- full `precoding`, `MIMO channel tensor`, and `MIMO detection` remain future `P2` slices
+- per-layer and per-port artifacts exposed in `PHY Pipeline`
+- advanced codebook precoding, `MIMO channel tensor`, and `MIMO detection` remain future `P2` slices
 
 Reference-signal baseline:
 

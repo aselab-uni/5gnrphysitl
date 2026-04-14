@@ -944,6 +944,33 @@ class PhyPipelinePanel(QWidget):
             int(np.count_nonzero(np.abs(tx_meta.tx_layer_symbols[layer_index]) > 1e-12))
             for layer_index in range(tx_meta.tx_layer_symbols.shape[0])
         ] if getattr(tx_meta, "tx_layer_symbols", np.zeros((1, 0))).ndim == 2 else [int(tx_meta.modulation_symbols.size)]
+        port_symbol_counts = [
+            int(np.count_nonzero(np.abs(tx_meta.tx_port_symbols[port_index]) > 1e-12))
+            for port_index in range(tx_meta.tx_port_symbols.shape[0])
+        ] if getattr(tx_meta, "tx_port_symbols", np.zeros((1, 0))).ndim == 2 else [int(tx_meta.modulation_symbols.size)]
+        port_powers = [
+            float(np.mean(np.abs(tx_meta.tx_port_symbols[port_index][: port_symbol_counts[port_index]]) ** 2))
+            if port_symbol_counts[port_index] > 0
+            else 0.0
+            for port_index in range(len(port_symbol_counts))
+        ]
+        port_gains = []
+        for port_index in range(min(rx.equalized_port_symbols.shape[0], tx_meta.tx_port_symbols.shape[0])):
+            reference_port = tx_meta.tx_port_symbols[port_index]
+            recovered_port = rx.equalized_port_symbols[port_index]
+            count = min(reference_port.size, recovered_port.size)
+            reference_view = reference_port[:count]
+            recovered_view = recovered_port[:count]
+            mask = np.abs(reference_view) > 1e-9
+            if not np.any(mask):
+                port_gains.append(0.0 + 0.0j)
+            else:
+                port_gains.append(np.mean(recovered_view[mask] / reference_view[mask]))
+        effective_channel_matrix = (
+            np.diag(np.asarray(port_gains, dtype=np.complex128)) @ np.asarray(tx_meta.precoder_matrix, dtype=np.complex128)
+            if port_gains
+            else np.zeros_like(np.asarray(tx_meta.precoder_matrix, dtype=np.complex128))
+        )
 
         stages = self._stage_definitions(
             result=result,
@@ -977,6 +1004,10 @@ class PhyPipelinePanel(QWidget):
             positions=positions,
             repeated_positions=repeated_positions,
             data_re_mask=data_re_mask,
+            layer_symbol_counts=layer_symbol_counts,
+            port_symbol_counts=port_symbol_counts,
+            port_powers=port_powers,
+            effective_channel_matrix=effective_channel_matrix,
         )
         if direction == "downlink" and tx_meta.channel_type in {"control", "pdcch"}:
             from phy.resource_grid import ResourceGrid
@@ -1104,6 +1135,10 @@ class PhyPipelinePanel(QWidget):
         positions: np.ndarray,
         repeated_positions: np.ndarray,
         data_re_mask: np.ndarray,
+        layer_symbol_counts: list[int],
+        port_symbol_counts: list[int],
+        port_powers: list[float],
+        effective_channel_matrix: np.ndarray,
     ) -> list[dict[str, Any]]:
         tx = result["tx"]
         rx = result["rx"]
@@ -1115,11 +1150,6 @@ class PhyPipelinePanel(QWidget):
         tx_meta = tx.metadata
         coding_meta = tx_meta.coding_metadata
         numerology = tx_meta.numerology
-        layer_symbol_counts = [
-            int(np.count_nonzero(np.abs(tx_meta.tx_layer_symbols[layer_index]) > 1e-12))
-            for layer_index in range(tx_meta.tx_layer_symbols.shape[0])
-        ] if getattr(tx_meta, "tx_layer_symbols", np.zeros((1, 0))).ndim == 2 else [int(tx_meta.modulation_symbols.size)]
-
         stages = [
             {
                 "key": "bits",
@@ -1303,6 +1333,60 @@ class PhyPipelinePanel(QWidget):
                 ],
             },
             {
+                "key": "precoding_port_mapping",
+                "section": "TX",
+                "flow_label": "Precode",
+                "title": "Precoding / Port Mapping",
+                "description": "Layer-domain streams are converted to port-domain streams through the configured linear precoder before port-grid occupancy is generated.",
+                "metrics": {
+                    "Precoding mode": getattr(tx_meta, "precoding_mode", "identity"),
+                    "Precoder shape": f"{tx_meta.precoder_matrix.shape[0]} x {tx_meta.precoder_matrix.shape[1]}",
+                    "Symbols / port": ", ".join(str(count) for count in port_symbol_counts) or "n/a",
+                    "Port powers": ", ".join(f"{power:.3f}" for power in port_powers) or "n/a",
+                },
+                "artifacts": [
+                    {
+                        "name": "Precoder matrix magnitude",
+                        "kind": "grid",
+                        "payload": {"image": np.abs(tx_meta.precoder_matrix), "lookup": "cividis"},
+                        "description": "Magnitude of the configured layer-to-port precoder matrix.",
+                    },
+                    {
+                        "name": "Per-port constellation",
+                        "kind": "constellation_compare",
+                        "payload": {
+                            "series": [
+                                {
+                                    "name": f"Port {port_index}",
+                                    "points": tx_meta.tx_port_symbols[port_index][: port_symbol_counts[port_index]],
+                                    "color": color,
+                                }
+                                for port_index, color in enumerate(["#38bdf8", "#f59e0b", "#34d399", "#f472b6"][: tx_meta.tx_port_symbols.shape[0]])
+                            ]
+                        },
+                        "description": "Port-domain symbol streams after precoding.",
+                    },
+                    {
+                        "name": "Per-port power",
+                        "kind": "bar",
+                        "payload": {
+                            "categories": [f"Port {index}" for index in range(len(port_powers))],
+                            "values": port_powers,
+                        },
+                        "description": "Average power of each port-domain symbol stream.",
+                    },
+                    *[
+                        {
+                            "name": f"Port {port_index} occupancy",
+                            "kind": "grid",
+                            "payload": {"image": np.abs(tx_meta.tx_port_grid[port_index]), "lookup": "viridis"},
+                            "description": f"Resource occupancy for port {port_index} after precoding.",
+                        }
+                        for port_index in range(tx_meta.tx_port_grid.shape[0])
+                    ],
+                ],
+            },
+            {
                 "key": "resource_grid_dmrs",
                 "section": "TX",
                 "flow_label": "Grid + DMRS",
@@ -1481,6 +1565,57 @@ class PhyPipelinePanel(QWidget):
                 "artifacts": [
                     {"name": "Pre/post equalization constellation", "kind": "constellation_compare", "payload": {"series": [{"name": "Reference", "points": reference_symbols, "color": "#f94144", "symbol_indices": repeated_positions[: reference_symbols.size, 0]}, {"name": "Pre-EQ", "points": pre_eq_symbols, "color": "#ffffff", "symbol_indices": repeated_positions[: pre_eq_symbols.size, 0]}, {"name": "Post-EQ", "points": post_eq_symbols, "color": "#38bdf8", "symbol_indices": repeated_positions[: post_eq_symbols.size, 0]}]}, "description": "Constellation before equalization and after equalization."},
                     {"name": "Equalizer gain", "kind": "line", "payload": {"x": np.arange(equalizer_gain.size), "y": 20.0 * np.log10(equalizer_gain + 1e-9), "x_label": "Subcarrier", "y_label": "Gain (dB)"}, "description": "Approximate equalizer gain magnitude derived from the estimated channel response."},
+                ],
+            },
+            {
+                "key": "layer_recovery",
+                "section": "RX",
+                "flow_label": "De-Precode",
+                "title": "Layer Recovery / De-precoding",
+                "description": "Equalized port-domain symbols are projected back into the layer domain using the pseudo-inverse of the precoder, creating the layer-domain streams used by demapping.",
+                "metrics": {
+                    "Recovered layers": int(rx.equalized_layer_symbols.shape[0]),
+                    "Observed ports": int(rx.equalized_port_symbols.shape[0]),
+                    "Precoder condition": f"{float(np.linalg.cond(tx_meta.precoder_matrix)):.4g}",
+                    "Effective channel shape": f"{effective_channel_matrix.shape[0]} x {effective_channel_matrix.shape[1]}",
+                },
+                "artifacts": [
+                    {
+                        "name": "Port-domain constellation",
+                        "kind": "constellation_compare",
+                        "payload": {
+                            "series": [
+                                {
+                                    "name": f"Port {port_index}",
+                                    "points": rx.equalized_port_symbols[port_index],
+                                    "color": color,
+                                }
+                                for port_index, color in enumerate(["#38bdf8", "#f59e0b", "#34d399", "#f472b6"][: rx.equalized_port_symbols.shape[0]])
+                            ]
+                        },
+                        "description": "Equalized port-domain constellations before layer recovery.",
+                    },
+                    {
+                        "name": "Recovered per-layer constellation",
+                        "kind": "constellation_compare",
+                        "payload": {
+                            "series": [
+                                {
+                                    "name": f"Layer {layer_index}",
+                                    "points": rx.equalized_layer_symbols[layer_index],
+                                    "color": color,
+                                }
+                                for layer_index, color in enumerate(["#38bdf8", "#f59e0b", "#34d399", "#f472b6"][: rx.equalized_layer_symbols.shape[0]])
+                            ]
+                        },
+                        "description": "Recovered layer-domain constellations after de-precoding.",
+                    },
+                    {
+                        "name": "Effective channel magnitude",
+                        "kind": "grid",
+                        "payload": {"image": np.abs(effective_channel_matrix), "lookup": "cividis"},
+                        "description": "Approximate effective layer-to-port channel magnitude under the current baseline.",
+                    },
                 ],
             },
             {
