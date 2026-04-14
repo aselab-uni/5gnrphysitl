@@ -11,5 +11,6 @@ def apply_doppler_rotation(
 ) -> np.ndarray:
     if abs(doppler_hz) < 1e-12:
         return waveform
-    time = np.arange(waveform.size) / sample_rate
-    return waveform * np.exp(1j * (2.0 * np.pi * doppler_hz * time + initial_phase))
+    view = np.asarray(waveform, dtype=np.complex128)
+    time = np.arange(view.shape[-1]) / sample_rate
+    return view * np.exp(1j * (2.0 * np.pi * doppler_hz * time + initial_phase))

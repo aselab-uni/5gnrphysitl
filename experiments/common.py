@@ -326,6 +326,22 @@ def _build_pipeline_trace(
         },
         {
             "section": "TX",
+            "stage": "Layer mapping",
+            "domain": "grid",
+            "description": "The codeword-domain modulation stream is distributed across the configured transmission layers before port mapping.",
+            "preview_kind": "grid",
+            "data": np.abs(tx_meta.tx_layer_grid[0]) if tx_meta.tx_layer_grid.size else np.zeros((0, 0), dtype=np.float64),
+            "artifact_type": "grid",
+            "input_shape": [int(dim) for dim in np.asarray(tx_meta.tx_symbols).shape],
+            "output_shape": [int(dim) for dim in np.asarray(tx_meta.tx_layer_grid).shape],
+            "notes": (
+                f"Layers: {int(tx_meta.spatial_layout.num_layers)} | "
+                f"Ports: {int(tx_meta.spatial_layout.num_ports)} | "
+                f"Current P2 baseline uses identity layer-to-port mapping."
+            ),
+        },
+        {
+            "section": "TX",
             "stage": "Resource grid mapping",
             "domain": "grid",
             "description": f"Mapped {mapping_label} symbols on the active NR-like resource grid before DMRS insertion.",
@@ -898,6 +914,13 @@ def simulate_link(
         fft_size=tx_result.metadata.numerology.fft_size,
         seed=simulation_seed + 7,
     )
+    if np.asarray(waveform).ndim > 1 and use_gnuradio:
+        use_gnuradio = False
+        gnuradio_requested = True
+        gnuradio_error = "GNU Radio loopback is currently limited to single-port waveform runs."
+    else:
+        gnuradio_requested = use_gnuradio
+        gnuradio_error: str | None = None
 
     if fading_model in {"awgn", "none"}:
         fading_response = np.ones(tx_result.metadata.numerology.fft_size, dtype=np.complex128)
@@ -911,8 +934,6 @@ def simulate_link(
         seed=simulation_seed + 123,
     )
 
-    gnuradio_requested = use_gnuradio
-    gnuradio_error: str | None = None
     if use_gnuradio:
         try:
             from grc.end_to_end_flowgraph import EndToEndFlowgraph

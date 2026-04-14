@@ -44,7 +44,14 @@ class FadingChannel:
 
     def apply(self, waveform: np.ndarray) -> FadingResult:
         impulse = self.build_impulse_response()
-        output = np.convolve(waveform, impulse, mode="full")[: waveform.size]
+        view = np.asarray(waveform, dtype=np.complex128)
+        if view.ndim == 1:
+            output = np.convolve(view, impulse, mode="full")[: view.size]
+        else:
+            output = np.stack(
+                [np.convolve(row, impulse, mode="full")[: row.size] for row in view],
+                axis=0,
+            )
 
         channel_cfg = self.config.get("channel", {})
         output = apply_doppler_rotation(

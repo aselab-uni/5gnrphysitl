@@ -10,6 +10,7 @@ from PyQt5.QtCore import QRectF, Qt
 from PyQt5.QtWidgets import QSizePolicy, QTabWidget, QVBoxLayout, QWidget
 
 from gui.phy_pipeline import PhyPipelinePanel
+from phy.layer_mapping import expand_positions_for_layers
 
 
 pg.setConfigOptions(antialias=True, imageAxisOrder="row-major")
@@ -290,23 +291,22 @@ class PlotPanel(QWidget):
 
     @staticmethod
     def _reference_symbols(result: Dict) -> np.ndarray:
-        tx = result["tx"]
-        positions = tx.metadata.mapping.positions
-        return tx.metadata.tx_grid[positions[:, 0], positions[:, 1]]
+        return np.asarray(result["tx"].metadata.modulation_symbols, dtype=np.complex128)
 
     @staticmethod
     def _pre_equalized_symbols(result: Dict) -> np.ndarray:
-        tx = result["tx"]
-        rx = result["rx"]
-        positions = tx.metadata.mapping.positions
-        return rx.rx_grid[positions[:, 0], positions[:, 1]]
+        return np.asarray(result["rx"].rx_symbols, dtype=np.complex128)
 
     @staticmethod
     def _per_symbol_evm(result: Dict) -> tuple[np.ndarray, np.ndarray]:
         tx = result["tx"]
         rx = result["rx"]
-        positions = tx.metadata.mapping.positions
-        reference = tx.metadata.tx_grid[positions[:, 0], positions[:, 1]]
+        positions = expand_positions_for_layers(
+            tx.metadata.mapping.positions,
+            tx.metadata.spatial_layout.num_layers,
+            total_symbols=tx.metadata.modulation_symbols.size,
+        )
+        reference = np.asarray(tx.metadata.modulation_symbols, dtype=np.complex128)
         equalized = rx.equalized_symbols
         values = []
         symbols = []
@@ -324,8 +324,12 @@ class PlotPanel(QWidget):
     def _per_subcarrier_relative_error(result: Dict) -> tuple[np.ndarray, np.ndarray]:
         tx = result["tx"]
         rx = result["rx"]
-        positions = tx.metadata.mapping.positions
-        reference = tx.metadata.tx_grid[positions[:, 0], positions[:, 1]]
+        positions = expand_positions_for_layers(
+            tx.metadata.mapping.positions,
+            tx.metadata.spatial_layout.num_layers,
+            total_symbols=tx.metadata.modulation_symbols.size,
+        )
+        reference = np.asarray(tx.metadata.modulation_symbols, dtype=np.complex128)
         equalized = rx.equalized_symbols
         values = []
         subcarriers = []
@@ -355,8 +359,12 @@ class PlotPanel(QWidget):
     def update_from_result(self, result: Dict) -> None:
         tx = result["tx"]
         rx = result["rx"]
-        tx_waveform = tx.waveform
-        rx_waveform = result["rx_waveform"]
+        tx_waveform = np.asarray(tx.waveform, dtype=np.complex128)
+        rx_waveform = np.asarray(result["rx_waveform"], dtype=np.complex128)
+        if tx_waveform.ndim > 1:
+            tx_waveform = tx_waveform[0]
+        if rx_waveform.ndim > 1:
+            rx_waveform = rx_waveform[0]
         channel_state = result["channel_state"]
         reference_symbols = self._reference_symbols(result)
         pre_equalized_symbols = self._pre_equalized_symbols(result)

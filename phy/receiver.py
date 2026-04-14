@@ -8,6 +8,7 @@ import numpy as np
 from .channel_estimation import channel_mse, ls_estimate_from_dmrs
 from .coding import build_channel_coder, rate_recover_llrs
 from .equalization import equalize
+from .layer_mapping import combine_layer_symbols, expand_positions_for_layers
 from .kpi import (
     LinkKpiSummary,
     bit_error_rate,
@@ -50,6 +51,9 @@ class RxResult:
     re_ssb_symbols: np.ndarray
     re_pbch_dmrs_positions: np.ndarray
     re_pbch_dmrs_symbols: np.ndarray
+    rx_layer_symbols: np.ndarray
+    equalized_layer_symbols: np.ndarray
+    detected_layer_symbols: np.ndarray
     rx_symbols: np.ndarray
     equalized_symbols: np.ndarray
     detected_symbols: np.ndarray
@@ -229,6 +233,9 @@ class NrReceiver:
             re_ssb_symbols=np.array([], dtype=np.complex128),
             re_pbch_dmrs_positions=np.zeros((0, 2), dtype=int),
             re_pbch_dmrs_symbols=np.array([], dtype=np.complex128),
+            rx_layer_symbols=equalized.reshape(1, -1),
+            equalized_layer_symbols=equalized.reshape(1, -1),
+            detected_layer_symbols=equalized.reshape(1, -1),
             rx_symbols=rx_symbols,
             equalized_symbols=equalized,
             detected_symbols=equalized.copy(),
@@ -254,26 +261,34 @@ class NrReceiver:
         receiver_cfg = self.config.get("receiver", {})
         channel_state = channel_state or {}
         numerology = tx_metadata.numerology
+        waveform_tensor = np.asarray(waveform, dtype=np.complex128)
+        if waveform_tensor.ndim == 1:
+            waveform_tensor = waveform_tensor[None, :]
+        sync_waveform = waveform_tensor[0]
 
         if bool(receiver_cfg.get("perfect_sync", False)):
             timing_offset = max(0, int(channel_state.get("sto_samples", 0)))
             cfo_estimate_hz = float(channel_state.get("cfo_hz", 0.0))
         else:
             timing_offset = estimate_symbol_timing(
-                waveform,
+                sync_waveform,
                 fft_size=numerology.fft_size,
                 cp_length=numerology.cp_length,
                 search_window=int(receiver_cfg.get("timing_search_window", 2 * numerology.cp_length)),
             )
             cfo_estimate_hz = estimate_cfo_from_cp(
-                waveform[timing_offset:],
+                sync_waveform[timing_offset:],
                 fft_size=numerology.fft_size,
                 cp_length=numerology.cp_length,
                 sample_rate=numerology.sample_rate,
                 symbols_to_average=int(receiver_cfg.get("cfo_symbols_to_average", 4)),
             )
 
-        corrected = correct_cfo(waveform[timing_offset:], cfo_hz=cfo_estimate_hz, sample_rate=numerology.sample_rate)
+        corrected_rows = [
+            correct_cfo(row[timing_offset:], cfo_hz=cfo_estimate_hz, sample_rate=numerology.sample_rate)
+            for row in waveform_tensor
+        ]
+        corrected = np.stack(corrected_rows, axis=0)
         demod_result = self._ofdm_demodulate(corrected, tx_metadata, timing_offset=0)
         cp_removed_tensor = demod_result["cp_removed_tensor"]
         fft_bins_tensor = demod_result["fft_bins_tensor"]
@@ -312,7 +327,19 @@ class NrReceiver:
             channel_est_mse = channel_mse(h_full, reference)
 
         positions = tx_metadata.mapping.positions
-        rx_symbols = rx_grid[positions[:, 0], positions[:, 1]]
+        layer_count = min(int(tx_metadata.spatial_layout.num_layers), int(rx_grid_tensor.shape[0]))
+        repeated_positions = expand_positions_for_layers(
+            positions,
+            layer_count,
+            total_symbols=tx_metadata.modulation_symbols.size,
+        )
+        rx_layer_symbols = np.stack(
+            [
+                rx_grid_tensor[layer_index, positions[:, 0], positions[:, 1]]
+                for layer_index in range(layer_count)
+            ],
+            axis=0,
+        ) if positions.size and layer_count > 0 else np.zeros((layer_count, 0), dtype=np.complex128)
         dmrs_positions = effective_dmrs_positions
         re_dmrs_symbols = (
             rx_grid[dmrs_positions[:, 0], dmrs_positions[:, 1]]
@@ -351,17 +378,30 @@ class NrReceiver:
         )
         h_symbols = h_full[positions[:, 0], positions[:, 1]]
         noise_variance = float(channel_state.get("noise_variance", 1e-3))
-        equalized = equalize(
-            rx_symbols=rx_symbols,
-            channel_estimate=h_symbols,
-            noise_variance=noise_variance,
-            mode=str(receiver_cfg.get("equalizer", "mmse")),
-        )
-        detected_symbols = (
-            remove_transform_precoding(equalized)
-            if bool(tx_metadata.transform_precoding_enabled) and str(tx_metadata.direction).lower() == "uplink"
-            else equalized.copy()
-        )
+        equalized_layer_symbols = np.stack(
+            [
+                equalize(
+                    rx_symbols=rx_layer_symbols[layer_index],
+                    channel_estimate=h_symbols,
+                    noise_variance=noise_variance,
+                    mode=str(receiver_cfg.get("equalizer", "mmse")),
+                )
+                for layer_index in range(layer_count)
+            ],
+            axis=0,
+        ) if layer_count > 0 else np.zeros((0, positions.shape[0]), dtype=np.complex128)
+        detected_layer_symbols = np.stack(
+            [
+                remove_transform_precoding(equalized_layer_symbols[layer_index])
+                if bool(tx_metadata.transform_precoding_enabled) and str(tx_metadata.direction).lower() == "uplink"
+                else equalized_layer_symbols[layer_index].copy()
+                for layer_index in range(layer_count)
+            ],
+            axis=0,
+        ) if layer_count > 0 else np.zeros((0, positions.shape[0]), dtype=np.complex128)
+        rx_symbols = combine_layer_symbols(rx_layer_symbols, total_symbols=tx_metadata.modulation_symbols.size)
+        equalized = combine_layer_symbols(equalized_layer_symbols, total_symbols=tx_metadata.modulation_symbols.size)
+        detected_symbols = combine_layer_symbols(detected_layer_symbols, total_symbols=tx_metadata.modulation_symbols.size)
         llrs = tx_metadata.mapper.demap_llr(detected_symbols, noise_variance=max(noise_variance, 1e-9))
         descrambled_llrs = descramble_llrs(llrs, tx_metadata.scrambling_sequence)
         rate_recovered_llrs = rate_recover_llrs(descrambled_llrs, tx_metadata.coding_metadata)
@@ -395,7 +435,7 @@ class NrReceiver:
             recovered_code_blocks = ()
             code_block_crc_ok = ()
 
-        reference_symbols = tx_metadata.tx_grid[positions[:, 0], positions[:, 1]]
+        reference_symbols = tx_metadata.modulation_symbols
         ber = bit_error_rate(tx_metadata.payload_bits, recovered_bits)
         evm = error_vector_magnitude(reference_symbols, equalized)
         slot_duration_s = numerology.slot_length_samples / numerology.sample_rate
@@ -448,7 +488,7 @@ class NrReceiver:
             fft_bins_tensor=fft_bins_tensor,
             rx_grid_tensor=rx_grid_tensor,
             rx_grid=rx_grid,
-            re_data_positions=positions,
+            re_data_positions=repeated_positions,
             re_data_symbols=rx_symbols,
             re_dmrs_positions=dmrs_positions,
             re_dmrs_symbols=re_dmrs_symbols,
@@ -462,6 +502,9 @@ class NrReceiver:
             re_ssb_symbols=re_ssb_symbols,
             re_pbch_dmrs_positions=pbch_dmrs_positions,
             re_pbch_dmrs_symbols=re_pbch_dmrs_symbols,
+            rx_layer_symbols=rx_layer_symbols,
+            equalized_layer_symbols=equalized_layer_symbols,
+            detected_layer_symbols=detected_layer_symbols,
             rx_symbols=rx_symbols,
             equalized_symbols=equalized,
             detected_symbols=detected_symbols,

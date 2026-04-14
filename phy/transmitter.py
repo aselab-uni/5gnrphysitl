@@ -7,6 +7,7 @@ import numpy as np
 
 from .coding import CodingMetadata, build_channel_coder
 from .frame_structure import FrameAllocation, build_default_allocation
+from .layer_mapping import layer_map_symbols
 from .modulation import ModulationMapper, bits_per_symbol
 from .prach import PrachMapper, bits_to_preamble_id, generate_prach_sequence, preamble_id_to_bits
 from .numerology import NumerologyConfig
@@ -39,6 +40,7 @@ class TxMetadata:
     ssb: Dict[str, np.ndarray]
     tensor_view_specs: Dict[str, Dict[str, object]]
     modulation_symbols: np.ndarray
+    tx_layer_symbols: np.ndarray
     tx_layer_grid: np.ndarray
     tx_port_grid: np.ndarray
     tx_grid_data: np.ndarray
@@ -66,6 +68,14 @@ class NrTransmitter:
         self.numerology = NumerologyConfig.from_dict(config["numerology"])
         self.allocation = build_default_allocation(self.numerology, config)
         self.spatial_layout = SpatialLayout.from_config(config)
+        if self.spatial_layout.num_codewords != 1:
+            raise ValueError("P2 layer-mapping baseline currently supports spatial.num_codewords = 1 only.")
+        if self.spatial_layout.num_layers > self.spatial_layout.num_ports:
+            raise ValueError("P2 layer-mapping baseline requires spatial.num_ports >= spatial.num_layers.")
+        if self.spatial_layout.num_ports > self.spatial_layout.num_tx_antennas:
+            raise ValueError("P2 layer-mapping baseline requires spatial.num_tx_antennas >= spatial.num_ports.")
+        if self.spatial_layout.num_layers > self.spatial_layout.num_rx_antennas:
+            raise ValueError("P2 layer-mapping baseline requires spatial.num_rx_antennas >= spatial.num_layers.")
 
     def _generate_payload(self, channel_type: str) -> np.ndarray:
         if channel_type.lower() == "prach":
@@ -177,6 +187,7 @@ class NrTransmitter:
                 ssb=empty_ssb.copy(),
                 tensor_view_specs=grid.tensor_view_specs_as_dict(),
                 modulation_symbols=prach_sequence.copy(),
+                tx_layer_symbols=prach_sequence.reshape(1, -1).copy(),
                 tx_layer_grid=grid.layer_grid.copy(),
                 tx_port_grid=grid.port_grid.copy(),
                 tx_grid_data=tx_grid_data,
@@ -231,7 +242,8 @@ class NrTransmitter:
         )
         modulation_symbols = mapper.map_bits(scrambled_bits)
         tx_symbols = apply_transform_precoding(modulation_symbols) if transform_precoding_enabled else modulation_symbols.copy()
-        grid.map_symbols(tx_symbols, mapping.positions)
+        tx_layer_symbols = layer_map_symbols(tx_symbols, self.spatial_layout.num_layers)
+        grid.map_layer_streams(tx_layer_symbols, mapping.positions)
         tx_grid_data = grid.grid.copy()
         reference_cfg = self.config.get("reference_signals", {})
         empty_rs = {"positions": np.zeros((0, 2), dtype=int), "symbols": np.array([], dtype=np.complex128), "port": 0}
@@ -278,7 +290,7 @@ class NrTransmitter:
         )
         dmrs = grid.insert_dmrs(slot=0) if channel_type not in {"pbch", "broadcast"} else empty_rs.copy()
         port_waveforms = self._ofdm_modulate(grid)
-        waveform = port_waveforms[0].copy()
+        waveform = port_waveforms[0].copy() if port_waveforms.shape[0] == 1 else port_waveforms.copy()
 
         return TxResult(
             waveform=waveform,
@@ -304,6 +316,7 @@ class NrTransmitter:
                 ssb=ssb,
                 tensor_view_specs=grid.tensor_view_specs_as_dict(),
                 modulation_symbols=modulation_symbols,
+                tx_layer_symbols=tx_layer_symbols.copy(),
                 tx_layer_grid=grid.layer_grid.copy(),
                 tx_port_grid=grid.port_grid.copy(),
                 tx_grid_data=tx_grid_data,

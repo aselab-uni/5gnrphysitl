@@ -1,0 +1,17 @@
+simulation:
+  capture_slots: 2
+
+spatial:
+  num_codewords: 1
+  num_layers: 2
+  num_ports: 2
+  num_tx_antennas: 2
+  num_rx_antennas: 2
+
+channel:
+  model: awgn
+  snr_db: 40.0
+
+receiver:
+  perfect_sync: true
+  perfect_channel_estimation: true

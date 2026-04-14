@@ -330,7 +330,7 @@ class ResourceGrid:
             positions = self.pdsch_positions()
         return ChannelMapping(
             positions=positions,
-            bits_capacity=positions.shape[0] * bits_per_symbol,
+            bits_capacity=positions.shape[0] * bits_per_symbol * max(int(self.spatial_layout.num_layers), 1),
             modulation=modulation,
         )
 
@@ -376,6 +376,26 @@ class ResourceGrid:
             return
         self.layer_grid[layer, positions[:count, 0], positions[:count, 1]] = symbols[:count]
         self.port_grid[port, positions[:count, 0], positions[:count, 1]] = symbols[:count]
+
+    def map_layer_streams(
+        self,
+        layer_symbols: np.ndarray,
+        positions: np.ndarray,
+    ) -> None:
+        layer_matrix = np.asarray(layer_symbols, dtype=np.complex128)
+        if layer_matrix.ndim != 2:
+            raise ValueError("layer_symbols must have shape (layer, symbol_index).")
+        positions = np.asarray(positions, dtype=int)
+        max_layers = min(layer_matrix.shape[0], self.layer_grid.shape[0], self.port_grid.shape[0])
+        if max_layers <= 0 or positions.size == 0:
+            return
+        for layer_index in range(max_layers):
+            self.map_symbols(
+                layer_matrix[layer_index],
+                positions,
+                layer=layer_index,
+                port=layer_index,
+            )
 
     def extract_symbols(self, positions: np.ndarray, *, domain: str = "port", index: int = 0) -> np.ndarray:
         positions = np.asarray(positions, dtype=int)

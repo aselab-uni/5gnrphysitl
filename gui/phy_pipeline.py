@@ -26,6 +26,7 @@ from PyQt5.QtWidgets import (
 
 from phy.artifacts import normalize_pipeline_stage, pipeline_stage, stage_artifact
 from phy.coding import _polar_transform, attach_crc
+from phy.layer_mapping import expand_positions_for_layers
 
 
 pg.setConfigOptions(antialias=True, imageAxisOrder="row-major")
@@ -893,6 +894,11 @@ class PhyPipelinePanel(QWidget):
                 mapping_label = "PDSCH-style"
         numerology = tx_meta.numerology
         positions = tx_meta.mapping.positions
+        repeated_positions = expand_positions_for_layers(
+            positions,
+            tx_meta.spatial_layout.num_layers,
+            total_symbols=tx_meta.modulation_symbols.size,
+        )
         payload_with_crc = (
             np.asarray(coding_meta.transport_block_with_crc, dtype=np.uint8)
             if coding_meta.transport_block_with_crc is not None
@@ -934,6 +940,10 @@ class PhyPipelinePanel(QWidget):
         code_rate = tx_meta.payload_bits.size / max(coding_meta.rate_matched_length, 1)
         code_stage = "Control small-block coder" if tx_meta.channel_type in {"control", "pdcch", "pbch", "pucch"} else "LDPC-inspired coder"
         data_re_mask = (allocation_map == 2.0).astype(np.float32)
+        layer_symbol_counts = [
+            int(np.count_nonzero(np.abs(tx_meta.tx_layer_symbols[layer_index]) > 1e-12))
+            for layer_index in range(tx_meta.tx_layer_symbols.shape[0])
+        ] if getattr(tx_meta, "tx_layer_symbols", np.zeros((1, 0))).ndim == 2 else [int(tx_meta.modulation_symbols.size)]
 
         stages = self._stage_definitions(
             result=result,
@@ -965,6 +975,7 @@ class PhyPipelinePanel(QWidget):
             mapping_label=mapping_label,
             transform_precoding_enabled=transform_precoding_enabled,
             positions=positions,
+            repeated_positions=repeated_positions,
             data_re_mask=data_re_mask,
         )
         if direction == "downlink" and tx_meta.channel_type in {"control", "pdcch"}:
@@ -1091,6 +1102,7 @@ class PhyPipelinePanel(QWidget):
         mapping_label: str,
         transform_precoding_enabled: bool,
         positions: np.ndarray,
+        repeated_positions: np.ndarray,
         data_re_mask: np.ndarray,
     ) -> list[dict[str, Any]]:
         tx = result["tx"]
@@ -1103,6 +1115,10 @@ class PhyPipelinePanel(QWidget):
         tx_meta = tx.metadata
         coding_meta = tx_meta.coding_metadata
         numerology = tx_meta.numerology
+        layer_symbol_counts = [
+            int(np.count_nonzero(np.abs(tx_meta.tx_layer_symbols[layer_index]) > 1e-12))
+            for layer_index in range(tx_meta.tx_layer_symbols.shape[0])
+        ] if getattr(tx_meta, "tx_layer_symbols", np.zeros((1, 0))).ndim == 2 else [int(tx_meta.modulation_symbols.size)]
 
         stages = [
             {
@@ -1225,7 +1241,7 @@ class PhyPipelinePanel(QWidget):
                         "payload": {
                             "series": [
                                 {"name": "Mapping table", "points": tx_meta.mapper.constellation, "color": "#f94144"},
-                                {"name": "TX symbols", "points": tx_meta.modulation_symbols, "color": "#38bdf8", "symbol_indices": positions[: tx_meta.modulation_symbols.size, 0]},
+                                {"name": "TX symbols", "points": tx_meta.modulation_symbols, "color": "#38bdf8", "symbol_indices": repeated_positions[: tx_meta.modulation_symbols.size, 0]},
                             ]
                         },
                         "description": "Constellation table and actual TX symbols before the channel.",
@@ -1235,14 +1251,55 @@ class PhyPipelinePanel(QWidget):
                         "kind": "constellation_compare",
                         "payload": {
                             "series": [
-                                {"name": "Reference", "points": reference_symbols, "color": "#f94144", "symbol_indices": positions[: reference_symbols.size, 0]},
-                                {"name": "Pre-EQ", "points": pre_eq_symbols, "color": "#ffffff", "symbol_indices": positions[: pre_eq_symbols.size, 0]},
-                                {"name": "Post-EQ", "points": post_eq_symbols, "color": "#38bdf8", "symbol_indices": positions[: post_eq_symbols.size, 0]},
+                                {"name": "Reference", "points": reference_symbols, "color": "#f94144", "symbol_indices": repeated_positions[: reference_symbols.size, 0]},
+                                {"name": "Pre-EQ", "points": pre_eq_symbols, "color": "#ffffff", "symbol_indices": repeated_positions[: pre_eq_symbols.size, 0]},
+                                {"name": "Post-EQ", "points": post_eq_symbols, "color": "#38bdf8", "symbol_indices": repeated_positions[: post_eq_symbols.size, 0]},
                             ]
                         },
                         "description": "Constellation before channel, after channel extraction, and after equalization.",
                     },
                     {"name": "Mapping table", "kind": "text", "payload": mapping_table, "description": "Gray-labeled mapping table for the selected modulation order."},
+                ],
+            },
+            {
+                "key": "layer_mapping",
+                "section": "TX",
+                "flow_label": "Layers",
+                "title": "Layer Mapping",
+                "description": "The single-codeword symbol stream is distributed across multiple transmission layers. This P2 baseline uses identity layer-to-port mapping, so each layer currently feeds the same-index port.",
+                "metrics": {
+                    "Codewords": int(tx_meta.spatial_layout.num_codewords),
+                    "Layers": int(tx_meta.spatial_layout.num_layers),
+                    "Ports": int(tx_meta.spatial_layout.num_ports),
+                    "TX antennas": int(tx_meta.spatial_layout.num_tx_antennas),
+                    "RX antennas": int(tx_meta.spatial_layout.num_rx_antennas),
+                    "Symbols / layer": ", ".join(str(count) for count in layer_symbol_counts) or "n/a",
+                },
+                "artifacts": [
+                    {
+                        "name": "Per-layer constellation",
+                        "kind": "constellation_compare",
+                        "payload": {
+                            "series": [
+                                {
+                                    "name": f"Layer {layer_index}",
+                                    "points": tx_meta.tx_layer_symbols[layer_index][: layer_symbol_counts[layer_index]],
+                                    "color": color,
+                                }
+                                for layer_index, color in enumerate(["#38bdf8", "#f59e0b", "#34d399", "#f472b6"][: tx_meta.tx_layer_symbols.shape[0]])
+                            ]
+                        },
+                        "description": "Layer-domain symbol streams after NR-style layer mapping.",
+                    },
+                    *[
+                        {
+                            "name": f"Layer {layer_index} occupancy",
+                            "kind": "grid",
+                            "payload": {"image": np.abs(tx_meta.tx_layer_grid[layer_index]), "lookup": "viridis"},
+                            "description": f"Resource occupancy for layer {layer_index} before port mapping.",
+                        }
+                        for layer_index in range(tx_meta.tx_layer_grid.shape[0])
+                    ],
                 ],
             },
             {
@@ -1422,7 +1479,7 @@ class PhyPipelinePanel(QWidget):
                     "EVM": f"{rx.kpis.evm:.4g}",
                 },
                 "artifacts": [
-                    {"name": "Pre/post equalization constellation", "kind": "constellation_compare", "payload": {"series": [{"name": "Reference", "points": reference_symbols, "color": "#f94144", "symbol_indices": positions[: reference_symbols.size, 0]}, {"name": "Pre-EQ", "points": pre_eq_symbols, "color": "#ffffff", "symbol_indices": positions[: pre_eq_symbols.size, 0]}, {"name": "Post-EQ", "points": post_eq_symbols, "color": "#38bdf8", "symbol_indices": positions[: post_eq_symbols.size, 0]}]}, "description": "Constellation before equalization and after equalization."},
+                    {"name": "Pre/post equalization constellation", "kind": "constellation_compare", "payload": {"series": [{"name": "Reference", "points": reference_symbols, "color": "#f94144", "symbol_indices": repeated_positions[: reference_symbols.size, 0]}, {"name": "Pre-EQ", "points": pre_eq_symbols, "color": "#ffffff", "symbol_indices": repeated_positions[: pre_eq_symbols.size, 0]}, {"name": "Post-EQ", "points": post_eq_symbols, "color": "#38bdf8", "symbol_indices": repeated_positions[: post_eq_symbols.size, 0]}]}, "description": "Constellation before equalization and after equalization."},
                     {"name": "Equalizer gain", "kind": "line", "payload": {"x": np.arange(equalizer_gain.size), "y": 20.0 * np.log10(equalizer_gain + 1e-9), "x_label": "Subcarrier", "y_label": "Gain (dB)"}, "description": "Approximate equalizer gain magnitude derived from the estimated channel response."},
                 ],
             },
@@ -1764,20 +1821,23 @@ class PhyPipelinePanel(QWidget):
 
     @staticmethod
     def _timing_metric_payload(waveform: np.ndarray, fft_size: int, cp_length: int, search_window: int) -> dict[str, Any]:
+        view = np.asarray(waveform, dtype=np.complex128)
+        if view.ndim > 1:
+            view = view[0]
         symbol_length = fft_size + cp_length
         offsets = []
         metrics = []
         for offset in range(max(search_window, 1)):
-            if offset + symbol_length >= waveform.size:
+            if offset + symbol_length >= view.size:
                 break
             metric = 0.0
             valid_symbols = 0
             for symbol_index in range(4):
                 start = offset + symbol_index * symbol_length
-                if start + symbol_length > waveform.size:
+                if start + symbol_length > view.size:
                     break
-                cp = waveform[start : start + cp_length]
-                tail = waveform[start + fft_size : start + fft_size + cp_length]
+                cp = view[start : start + cp_length]
+                tail = view[start + fft_size : start + fft_size + cp_length]
                 numerator = np.abs(np.vdot(cp, tail))
                 denominator = np.sqrt(np.vdot(cp, cp).real * np.vdot(tail, tail).real) + 1e-12
                 metric += numerator / denominator
@@ -1790,6 +1850,9 @@ class PhyPipelinePanel(QWidget):
 
     @staticmethod
     def _cfo_trace_payload(waveform: np.ndarray, fft_size: int, cp_length: int, symbols_to_average: int = 6) -> dict[str, Any]:
+        view = np.asarray(waveform, dtype=np.complex128)
+        if view.ndim > 1:
+            view = view[0]
         symbol_length = fft_size + cp_length
         phases = []
         magnitudes = []
@@ -1797,10 +1860,10 @@ class PhyPipelinePanel(QWidget):
         for symbol_index in range(symbols_to_average):
             start = symbol_index * symbol_length
             end = start + symbol_length
-            if end > waveform.size:
+            if end > view.size:
                 break
-            cp = waveform[start : start + cp_length]
-            tail = waveform[start + fft_size : start + fft_size + cp_length]
+            cp = view[start : start + cp_length]
+            tail = view[start + fft_size : start + fft_size + cp_length]
             correlation = np.vdot(cp, tail)
             phases.append(np.angle(correlation))
             magnitudes.append(np.abs(correlation))

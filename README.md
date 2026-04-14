@@ -1512,6 +1512,20 @@ Ready-made PBCH baseline scenario:
 python main.py --config configs/default.yaml --override configs/scenario_pbch_baseline.yaml --gui
 ```
 
+Ready-made `P2` layer-mapping baseline scenario:
+
+```bash
+python main.py --config configs/default.yaml --override configs/scenario_su_mimo_layer_mapping.yaml --gui
+```
+
+Current scope of this `P2-1` baseline:
+
+- `1 codeword`
+- `2 layers / 2 ports / 2 TX / 2 RX` identity layer-to-port mapping
+- independent per-port propagation through the existing software channel path
+- per-layer constellation and occupancy exposed in `PHY Pipeline`
+- full `precoding`, `MIMO channel tensor`, and `MIMO detection` remain future `P2` slices
+
 Reference-signal baseline:
 
 - `CSI-RS` is inserted on downlink data/control runs and exposed in the grid and extraction stages.
