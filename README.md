@@ -850,6 +850,7 @@ Notes:
 - If `.venv` was created with the wrong Python version, remove it and recreate it before relying on the launchers.
 - Extra command-line arguments are passed through to the underlying Python command.
 - `make test` requires `pytest` to be installed in the active environment.
+- For a professional end-user operating guide covering installation, GUI usage, scenarios, outputs, and troubleshooting, see [`docs/USER_MANUAL.md`](/D:/Data/Lectures/20252/MobiCom/Codex/5GNRPHYSITL/5gnr_phy_stl/docs/USER_MANUAL.md).
 - For end-to-end installation procedures and automation scripts, see [`docs/INSTALLATION_WORKFLOWS.md`](/D:/Data/Lectures/20252/MobiCom/Codex/5GNRPHYSITL/5gnr_phy_stl/docs/INSTALLATION_WORKFLOWS.md).
 - For a classroom-oriented walkthrough, see `docs/STUDENT_TESTCASES.md`.
 - For deeper 3GPP-inspired teaching demos, see `docs/SHOWCASES_3GPP_PHY.md`.
