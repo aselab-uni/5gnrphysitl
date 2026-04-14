@@ -122,6 +122,9 @@ class ControlPanel(QWidget):
         self.widgets["perfect_sync"] = QCheckBox()
         self.widgets["perfect_channel_estimation"] = QCheckBox()
         self.widgets["transform_precoding"] = QCheckBox()
+        self.widgets["csi_enabled"] = QCheckBox()
+        self.widgets["csi_replay_feedback"] = QCheckBox()
+        self.widgets["csi_max_rank"] = self._spin(1, 8, 4)
         self.widgets["use_gnuradio"] = QCheckBox("Use GNU Radio loopback")
         tx_file_selector = self._path_selector(key="tx_file_path", browse_label="...")
         rx_dir_selector = self._path_selector(key="rx_output_dir", browse_label="...")
@@ -150,6 +153,9 @@ class ControlPanel(QWidget):
         form.addRow("Perfect sync", self.widgets["perfect_sync"])
         form.addRow("Perfect CE", self.widgets["perfect_channel_estimation"])
         form.addRow("Transform precoding", self.widgets["transform_precoding"])
+        form.addRow("CSI enabled", self.widgets["csi_enabled"])
+        form.addRow("CSI replay", self.widgets["csi_replay_feedback"])
+        form.addRow("CSI max rank", self.widgets["csi_max_rank"])
         form.addRow("TX file", tx_file_selector)
         form.addRow("RX output", rx_dir_selector)
         form.addRow("", self.widgets["use_gnuradio"])
@@ -188,6 +194,15 @@ class ControlPanel(QWidget):
         )
         self.widgets["transform_precoding"].setToolTip(
             "Enable uplink DFT-s-OFDM style transform precoding for the PUSCH baseline."
+        )
+        self.widgets["csi_enabled"].setToolTip(
+            "Estimate CQI, PMI, and RI from the effective channel after each run."
+        )
+        self.widgets["csi_replay_feedback"].setToolTip(
+            "Replay CSI feedback into later captured slots by updating the scheduled precoder and, when possible, the number of layers."
+        )
+        self.widgets["csi_max_rank"].setToolTip(
+            "Maximum rank considered when deriving RI during the CSI feedback step."
         )
 
         help_label = QLabel(
@@ -243,6 +258,9 @@ class ControlPanel(QWidget):
             bool(config.get("receiver", {}).get("perfect_channel_estimation", False))
         )
         self.widgets["transform_precoding"].setChecked(bool(config.get("uplink", {}).get("transform_precoding", False)))
+        self.widgets["csi_enabled"].setChecked(bool(config.get("csi", {}).get("enabled", True)))
+        self.widgets["csi_replay_feedback"].setChecked(bool(config.get("csi", {}).get("replay_feedback", False)))
+        self.widgets["csi_max_rank"].setValue(int(config.get("csi", {}).get("max_rank", 4)))
         self.widgets["tx_file_path"].setText(str(config.get("payload_io", {}).get("tx_file_path", "")))
         self.widgets["rx_output_dir"].setText(str(config.get("payload_io", {}).get("rx_output_dir", "")))
         self.widgets["use_gnuradio"].setChecked(bool(config.get("simulation", {}).get("use_gnuradio", False)))
@@ -257,6 +275,11 @@ class ControlPanel(QWidget):
             "modulation": {"scheme": self.widgets["modulation"].currentText()},
             "coding": {"target_rate": float(self.widgets["target_rate"].value())},
             "uplink": {"transform_precoding": self.widgets["transform_precoding"].isChecked()},
+            "csi": {
+                "enabled": self.widgets["csi_enabled"].isChecked(),
+                "replay_feedback": self.widgets["csi_replay_feedback"].isChecked(),
+                "max_rank": int(self.widgets["csi_max_rank"].value()),
+            },
             "numerology": {
                 "scs_khz": float(self.widgets["scs_khz"].currentText()),
                 "fft_size": int(self.widgets["fft_size"].currentText()),

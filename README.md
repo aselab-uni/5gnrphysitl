@@ -1518,13 +1518,20 @@ Ready-made `P2` layer-mapping baseline scenario:
 python main.py --config configs/default.yaml --override configs/scenario_su_mimo_layer_mapping.yaml --gui
 ```
 
-Current scope of this `P2-1` baseline:
+Ready-made `P2` CSI-loop baseline scenario:
+
+```bash
+python main.py --config configs/default.yaml --override configs/scenario_su_mimo_csi_loop.yaml --gui
+```
+
+Current scope of the implemented `P2` baseline:
 
 - `1 codeword`
-- `2 layers / 2 ports / 2 TX / 2 RX` with a baseline linear precoder (`identity` or `dft`)
-- independent per-port propagation through the existing software channel path
-- per-layer and per-port artifacts exposed in `PHY Pipeline`
-- advanced codebook precoding, `MIMO channel tensor`, and `MIMO detection` remain future `P2` slices
+- `2x2` and `4x4` SU-MIMO baselines with linear precoding (`identity` or `dft`)
+- software MIMO channel tensor `H[rx,port,symbol,subcarrier]`
+- detector choices `ZF`, `MMSE`, and `OSIC`
+- `CQI / PMI / RI` feedback baseline with optional replay across captured slots
+- per-layer, per-port, detector, and CSI artifacts exposed in `PHY Pipeline`
 
 Reference-signal baseline:
 

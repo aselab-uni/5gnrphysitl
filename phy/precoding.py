@@ -14,26 +14,33 @@ class PrecoderSpec:
     matrix: np.ndarray
 
 
+def build_precoder_matrix(mode: str, num_ports: int, num_layers: int) -> np.ndarray:
+    resolved_mode = str(mode).lower()
+    port_count = int(num_ports)
+    layer_count = int(num_layers)
+
+    if resolved_mode == "identity":
+        matrix = np.zeros((port_count, layer_count), dtype=np.complex128)
+        diagonal = min(port_count, layer_count)
+        matrix[np.arange(diagonal), np.arange(diagonal)] = 1.0 + 0.0j
+        return matrix
+
+    if resolved_mode == "dft":
+        row_index = np.arange(port_count, dtype=np.float64)[:, None]
+        col_index = np.arange(layer_count, dtype=np.float64)[None, :]
+        matrix = np.exp(-1j * 2.0 * np.pi * row_index * col_index / max(port_count, 1))
+        matrix /= np.sqrt(max(layer_count, 1))
+        return matrix.astype(np.complex128)
+
+    raise ValueError(f"Unsupported precoding.mode: {resolved_mode}")
+
+
 def build_precoder(config: Mapping[str, Any] | None, spatial_layout: SpatialLayout) -> PrecoderSpec:
     precoding_cfg = dict(config.get("precoding", {})) if config else {}
     mode = str(precoding_cfg.get("mode", "identity")).lower()
     num_layers = int(spatial_layout.num_layers)
     num_ports = int(spatial_layout.num_ports)
-
-    if mode == "identity":
-        matrix = np.zeros((num_ports, num_layers), dtype=np.complex128)
-        diagonal = min(num_ports, num_layers)
-        matrix[np.arange(diagonal), np.arange(diagonal)] = 1.0 + 0.0j
-        return PrecoderSpec(mode="identity", matrix=matrix)
-
-    if mode == "dft":
-        row_index = np.arange(num_ports, dtype=np.float64)[:, None]
-        col_index = np.arange(num_layers, dtype=np.float64)[None, :]
-        matrix = np.exp(-1j * 2.0 * np.pi * row_index * col_index / max(num_ports, 1))
-        matrix /= np.sqrt(max(num_layers, 1))
-        return PrecoderSpec(mode="dft", matrix=matrix.astype(np.complex128))
-
-    raise ValueError(f"Unsupported precoding.mode: {mode}")
+    return PrecoderSpec(mode=mode, matrix=build_precoder_matrix(mode, num_ports=num_ports, num_layers=num_layers))
 
 
 def apply_precoder(layer_symbols: np.ndarray, matrix: np.ndarray) -> np.ndarray:

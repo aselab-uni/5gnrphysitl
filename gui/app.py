@@ -171,6 +171,9 @@ class NrPhyResearchApp(QMainWindow):
             "Perfect sync": "Yes" if bool(self.current_config.get("receiver", {}).get("perfect_sync", False)) else "No",
             "Perfect channel estimation": "Yes" if bool(self.current_config.get("receiver", {}).get("perfect_channel_estimation", False)) else "No",
             "Transform precoding": "Yes" if bool(self.current_config.get("uplink", {}).get("transform_precoding", False)) else "No",
+            "CSI enabled": "Yes" if bool(self.current_config.get("csi", {}).get("enabled", True)) else "No",
+            "CSI replay": "Yes" if bool(self.current_config.get("csi", {}).get("replay_feedback", False)) else "No",
+            "CSI max rank": int(self.current_config.get("csi", {}).get("max_rank", 4)),
             "CSI-RS baseline": "Yes" if bool(self.current_config.get("reference_signals", {}).get("enable_csi_rs", True)) else "No",
             "SRS baseline": "Yes" if bool(self.current_config.get("reference_signals", {}).get("enable_srs", True)) else "No",
             "PT-RS baseline": "Yes" if bool(self.current_config.get("reference_signals", {}).get("enable_ptrs", True)) else "No",
@@ -185,6 +188,11 @@ class NrPhyResearchApp(QMainWindow):
         if result is not None:
             if result.get("captured_slots"):
                 status["Captured slot results"] = int(result.get("captured_slots", 1))
+            if result.get("csi_feedback"):
+                csi_feedback = result["csi_feedback"]
+                status["Latest CQI"] = int(csi_feedback.get("cqi", 0))
+                status["Latest PMI"] = str(csi_feedback.get("pmi", "n/a"))
+                status["Latest RI"] = int(csi_feedback.get("ri", 1))
             channel_state = result.get("channel_state", {})
             if channel_state.get("gnu_radio_requested"):
                 status["GNU Radio loopback used"] = "Yes" if channel_state.get("gnu_radio_used") else "No"
@@ -237,6 +245,14 @@ class NrPhyResearchApp(QMainWindow):
             notes.append("Uplink SRS baseline is enabled for uplink data paths. SRS REs are visible in the grid and extraction stages.")
         if bool(config.get("reference_signals", {}).get("enable_ptrs", True)):
             notes.append("PT-RS baseline is enabled for scheduled data paths. PT-RS REs are visible in the grid and extraction stages for phase-tracking observability.")
+        if bool(config.get("csi", {}).get("enabled", True)):
+            notes.append(
+                "CSI feedback baseline is enabled. The receiver reports CQI, PMI, and RI from the effective channel tensor after each run."
+            )
+            if bool(config.get("csi", {}).get("replay_feedback", False)):
+                notes.append(
+                    "CSI replay is enabled. Later captured slots may adapt the scheduled precoder and rank using earlier CSI reports."
+                )
         if str(link.get("direction", "downlink")).lower() == "uplink":
             channel_type = str(link.get("channel_type", "data")).lower()
             if channel_type == "prach":
@@ -283,6 +299,13 @@ class NrPhyResearchApp(QMainWindow):
                 notes.append(
                     f"Multi-slot capture summary: {summary.get('captured_slots', 1)} slots across {summary.get('frames_covered', 1)} frame(s)."
                 )
+                if summary.get("csi_trace"):
+                    latest_csi = summary["csi_trace"][-1]
+                    notes.append(
+                        f"Latest CSI report: CQI={int(latest_csi.get('cqi', 0))}, PMI={latest_csi.get('pmi', 'n/a')}, RI={int(latest_csi.get('ri', 1))}."
+                    )
+                if summary.get("csi_replay_enabled"):
+                    notes.append("Sequence replay is applying CSI feedback across captured slots.")
             channel_state = result.get("channel_state", {})
             if channel_state.get("gnu_radio_requested") and not channel_state.get("gnu_radio_used"):
                 notes.append("GNU Radio loopback request fell back to the Python-only channel path at runtime.")

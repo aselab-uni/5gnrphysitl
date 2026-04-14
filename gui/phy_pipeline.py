@@ -959,6 +959,7 @@ class PhyPipelinePanel(QWidget):
             if getattr(rx, "effective_channel_tensor", np.zeros((0, 0, 0, 0))).size
             else np.zeros_like(np.asarray(tx_meta.precoder_matrix, dtype=np.complex128))
         )
+        csi_feedback = dict(result.get("csi_feedback", {}))
 
         stages = self._stage_definitions(
             result=result,
@@ -996,6 +997,7 @@ class PhyPipelinePanel(QWidget):
             port_symbol_counts=port_symbol_counts,
             port_powers=port_powers,
             effective_channel_matrix=effective_channel_matrix,
+            csi_feedback=csi_feedback,
         )
         if direction == "downlink" and tx_meta.channel_type in {"control", "pdcch"}:
             from phy.resource_grid import ResourceGrid
@@ -1127,6 +1129,7 @@ class PhyPipelinePanel(QWidget):
         port_symbol_counts: list[int],
         port_powers: list[float],
         effective_channel_matrix: np.ndarray,
+        csi_feedback: dict[str, Any],
     ) -> list[dict[str, Any]]:
         tx = result["tx"]
         rx = result["rx"]
@@ -1617,6 +1620,48 @@ class PhyPipelinePanel(QWidget):
                             ]
                         },
                         "description": "Recovered layer-domain constellations after de-precoding.",
+                    },
+                ],
+            },
+            {
+                "key": "csi_feedback",
+                "section": "RX",
+                "flow_label": "CSI",
+                "title": "CSI Feedback",
+                "description": "CQI, PMI, and RI are derived from the effective channel tensor and detector noise estimate, producing a baseline CSI loop for later slot scheduling.",
+                "metrics": {
+                    "CQI": int(csi_feedback.get("cqi", 0)),
+                    "PMI": str(csi_feedback.get("pmi", getattr(tx_meta, "precoding_mode", "identity"))),
+                    "RI": int(csi_feedback.get("ri", tx_meta.spatial_layout.num_layers)),
+                    "Capacity proxy": f"{float(csi_feedback.get('capacity_proxy_bps_hz', 0.0)):.4g} b/s/Hz",
+                },
+                "artifacts": [
+                    {
+                        "name": "Singular value spectrum",
+                        "kind": "bar",
+                        "payload": {
+                            "categories": [f"s{index + 1}" for index in range(len(csi_feedback.get("singular_values", [])))],
+                            "values": np.asarray(csi_feedback.get("singular_values", []), dtype=float),
+                        },
+                        "description": "Singular values of the average effective MIMO channel used to derive RI.",
+                    },
+                    {
+                        "name": "Rank score",
+                        "kind": "bar",
+                        "payload": {
+                            "categories": [f"RI {index + 1}" for index in range(len(csi_feedback.get("rank_scores", [])))],
+                            "values": np.asarray(csi_feedback.get("rank_scores", []), dtype=float),
+                        },
+                        "description": "Capacity proxy used to choose the recommended rank.",
+                    },
+                    {
+                        "name": "Codebook score",
+                        "kind": "bar",
+                        "payload": {
+                            "categories": list(csi_feedback.get("codebook_scores", {}).keys()),
+                            "values": np.asarray(list(csi_feedback.get("codebook_scores", {}).values()), dtype=float),
+                        },
+                        "description": "Relative score of each candidate precoder mode under the current channel estimate.",
                     },
                 ],
             },

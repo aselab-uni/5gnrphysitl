@@ -1,0 +1,26 @@
+simulation:
+  capture_slots: 6
+
+spatial:
+  num_codewords: 1
+  num_layers: 2
+  num_ports: 2
+  num_tx_antennas: 2
+  num_rx_antennas: 2
+
+precoding:
+  mode: identity
+
+csi:
+  enabled: true
+  replay_feedback: true
+  max_rank: 4
+  candidate_precoders: [identity, dft]
+
+channel:
+  model: awgn
+  snr_db: 18.0
+
+receiver:
+  perfect_sync: true
+  perfect_channel_estimation: true

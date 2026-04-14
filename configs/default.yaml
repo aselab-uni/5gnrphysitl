@@ -38,6 +38,13 @@ spatial:
 precoding:
   mode: identity
 
+csi:
+  enabled: true
+  replay_feedback: false
+  max_rank: 4
+  candidate_precoders: [identity, dft]
+  cqi_snr_offset_db: 0.0
+
 frame:
   control_symbols: 2
   pdsch_start_symbol: 2

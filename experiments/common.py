@@ -11,6 +11,7 @@ from channel.doppler import apply_doppler_rotation
 from channel.fading_channel import FadingChannel
 from channel.impairments import apply_impairments
 from phy.artifacts import normalize_pipeline_stage
+from phy.csi import report_csi
 from phy.context import SlotContext
 from phy.kpi import LinkKpiSummary, bit_error_rate, spectral_efficiency_bps_hz
 from phy.receiver import NrReceiver
@@ -81,6 +82,48 @@ def _spatial_channel_matrix(config: Dict, tx_metadata, seed: int) -> np.ndarray:
         identity = np.eye(num_rx, num_tx, dtype=np.complex128)
         base = 0.65 * identity + 0.35 * base
     return base.astype(np.complex128)
+
+
+def _csi_feedback_for_result(result: Dict[str, Any]) -> dict[str, object] | None:
+    csi_cfg = dict(result["config"].get("csi", {}))
+    if not bool(csi_cfg.get("enabled", True)):
+        return None
+    channel_tensor = np.asarray(getattr(result["rx"], "effective_channel_tensor", np.zeros((0, 0, 0, 0))), dtype=np.complex128)
+    if channel_tensor.size == 0:
+        channel_tensor = np.asarray(getattr(result["rx"], "channel_tensor", np.zeros((0, 0, 0, 0))), dtype=np.complex128)
+    if channel_tensor.size == 0:
+        return None
+    feedback = report_csi(
+        channel_tensor=channel_tensor,
+        noise_variance=float(result["channel_state"].get("noise_variance", 1e-3)),
+        max_rank=int(csi_cfg.get("max_rank", 4)),
+        candidate_precoders=csi_cfg.get("candidate_precoders", ["identity", "dft"]),
+        cqi_snr_offset_db=float(csi_cfg.get("cqi_snr_offset_db", 0.0)),
+    )
+    payload = feedback.as_dict()
+    payload["tx_precoding_mode"] = str(getattr(result["tx"].metadata, "precoding_mode", "identity"))
+    payload["tx_layers"] = int(result["tx"].metadata.spatial_layout.num_layers)
+    return payload
+
+
+def _csi_replay_supported(channel_type: str) -> bool:
+    return str(channel_type).lower() not in {"prach", "pbch", "broadcast"}
+
+
+def _apply_csi_feedback_to_config(config: Dict[str, Any], feedback: dict[str, object], *, allow_rank_update: bool) -> Dict[str, Any]:
+    updated = deepcopy(config)
+    updated.setdefault("precoding", {})
+    updated.setdefault("spatial", {})
+    updated["precoding"]["mode"] = str(feedback.get("pmi", updated["precoding"].get("mode", "identity"))).lower()
+    if allow_rank_update:
+        rank = int(feedback.get("ri", updated["spatial"].get("num_layers", 1)))
+        max_rank = min(
+            int(updated["spatial"].get("num_ports", rank)),
+            int(updated["spatial"].get("num_rx_antennas", rank)),
+            int(updated["csi"].get("max_rank", rank)) if "csi" in updated else rank,
+        )
+        updated["spatial"]["num_layers"] = max(1, min(rank, max_rank))
+    return updated
 
 
 def _payload_size_bits_for_channel(config: Dict, channel_type: str) -> int:
@@ -1089,6 +1132,27 @@ def simulate_link(
         "channel_output_waveform": channel_output_waveform,
         "rx_waveform": rx_waveform,
     }
+    csi_feedback = _csi_feedback_for_result(result)
+    if csi_feedback is not None:
+        result["csi_feedback"] = csi_feedback
+        result["pipeline"].insert(
+            next((index for index, stage in enumerate(result["pipeline"]) if stage["stage"] == "Soft demapping"), len(result["pipeline"])),
+            {
+                "section": "RX",
+                "stage": "CSI feedback",
+                "domain": "control",
+                "description": "CQI, PMI, and RI feedback are derived from the effective MIMO channel and current noise estimate for future scheduling and precoding decisions.",
+                "preview_kind": "text",
+                "data": csi_feedback,
+                "artifact_type": "text",
+                "input_shape": [int(dim) for dim in np.asarray(rx_result.effective_channel_tensor).shape],
+                "output_shape": [3],
+                "notes": (
+                    f"CQI={int(csi_feedback['cqi'])} | PMI={csi_feedback['pmi']} | "
+                    f"RI={int(csi_feedback['ri'])} | Capacity={float(csi_feedback['capacity_proxy_bps_hz']):.3f} b/s/Hz"
+                ),
+            },
+        )
     return _annotate_result_slot(result, seed_offset)
 
 
@@ -1100,15 +1164,36 @@ def simulate_link_sequence(
     num_slots: int | None = None,
 ) -> Dict[str, Any]:
     capture_slots = max(1, int(num_slots or config.get("simulation", {}).get("capture_slots", 1)))
-    slot_results = [
-        simulate_link(
-            config=config,
-            channel_type=channel_type,
+    active_channel_type = channel_type or config.get("link", {}).get("channel_type", "data")
+    sequence_config = deepcopy(config)
+    slot_results: list[Dict[str, Any]] = []
+    csi_trace: list[dict[str, object]] = []
+    schedule_trace: list[dict[str, object]] = []
+    replay_enabled = bool(sequence_config.get("csi", {}).get("replay_feedback", False)) and _csi_replay_supported(active_channel_type)
+    for timeline_index in range(capture_slots):
+        slot_result = simulate_link(
+            config=sequence_config,
+            channel_type=active_channel_type,
             payload_bits=payload_bits,
             seed_offset=timeline_index,
         )
-        for timeline_index in range(capture_slots)
-    ]
+        slot_results.append(slot_result)
+        schedule_trace.append(
+            {
+                "timeline_index": int(timeline_index),
+                "scheduled_layers": int(slot_result["tx"].metadata.spatial_layout.num_layers),
+                "scheduled_precoding_mode": str(slot_result["tx"].metadata.precoding_mode),
+            }
+        )
+        if slot_result.get("csi_feedback") is not None:
+            csi_entry = {"timeline_index": int(timeline_index), **dict(slot_result["csi_feedback"])}
+            csi_trace.append(csi_entry)
+            if replay_enabled and timeline_index < capture_slots - 1:
+                sequence_config = _apply_csi_feedback_to_config(
+                    sequence_config,
+                    slot_result["csi_feedback"],
+                    allow_rank_update=payload_bits is None,
+                )
 
     representative = deepcopy(slot_results[0])
     representative["slot_history"] = [
@@ -1125,6 +1210,9 @@ def simulate_link_sequence(
         "frames_covered": int(max(history["frame_index"] for history in representative["slot_history"]) + 1),
         "slots_crc_passed": int(sum(entry["rx"].crc_ok for entry in slot_results)),
         "slots_crc_failed": int(sum(not entry["rx"].crc_ok for entry in slot_results)),
+        "csi_replay_enabled": replay_enabled,
+        "csi_trace": csi_trace,
+        "schedule_trace": schedule_trace,
     }
     return representative
 

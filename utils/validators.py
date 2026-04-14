@@ -33,6 +33,17 @@ def validate_config(config: dict) -> dict:
     precoding = config.get("precoding", {})
     if str(precoding.get("mode", "identity")).lower() not in {"identity", "dft"}:
         raise ValueError("precoding.mode must be one of: identity, dft.")
+    csi = config.get("csi", {})
+    if int(csi.get("max_rank", 1)) < 1:
+        raise ValueError("csi.max_rank must be at least 1.")
+    candidate_precoders = csi.get("candidate_precoders", ["identity", "dft"])
+    if isinstance(candidate_precoders, str):
+        candidate_precoders = [candidate_precoders]
+    normalized_precoders = {str(mode).lower() for mode in candidate_precoders}
+    if not normalized_precoders:
+        raise ValueError("csi.candidate_precoders must not be empty.")
+    if not normalized_precoders.issubset({"identity", "dft"}):
+        raise ValueError("csi.candidate_precoders must only contain: identity, dft.")
 
     coding = config.get("coding", {})
     if int(coding.get("code_block_payload_bits", 1)) < 1:
