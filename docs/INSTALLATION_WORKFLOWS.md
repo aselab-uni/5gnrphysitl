@@ -48,6 +48,12 @@ cd <path-to-5gnr_phy_stl>
 .\install\windows-python-only.ps1
 ```
 
+Absolute-path examples for `<path-to-5gnr_phy_stl>`:
+
+- Windows: `D:\Projects\5gnr_phy_stl`
+- Ubuntu/Linux: `/home/<user>/projects/5gnr_phy_stl`
+- macOS: `/Users/<user>/projects/5gnr_phy_stl`
+
 Useful options:
 
 ```powershell
@@ -95,6 +101,12 @@ If the script cannot find Radioconda automatically, pass the interpreter explici
 ```
 
 `<radioconda-python>` means the `python.exe` inside your own Radioconda installation.
+
+Explicit interpreter examples:
+
+- Windows Radioconda: `C:\Users\<user>\AppData\Local\radioconda\python.exe`
+- Ubuntu/Linux Conda environment: `/home/<user>/miniforge3/envs/5gnr-phy/bin/python`
+- macOS Conda environment: `/Users/<user>/miniforge3/envs/5gnr-phy/bin/python`
 
 ## Ubuntu 22.04 / 24.04
 

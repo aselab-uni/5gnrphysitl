@@ -20,6 +20,12 @@ Windows:
 cd <path-to-5gnr_phy_stl>
 ```
 
+Absolute-path examples:
+
+- Windows: `D:\Projects\5gnr_phy_stl`
+- Ubuntu/Linux: `/home/<user>/projects/5gnr_phy_stl`
+- macOS: `/Users/<user>/projects/5gnr_phy_stl`
+
 Linux/macOS:
 
 ```bash

@@ -40,6 +40,12 @@ cd <path-to-5gnr_phy_stl>
 
 Replace `<path-to-5gnr_phy_stl>` with the local checkout path on the student machine.
 
+Absolute-path examples:
+
+- Windows: `D:\Projects\5gnr_phy_stl`
+- Ubuntu/Linux: `/home/<user>/projects/5gnr_phy_stl`
+- macOS: `/Users/<user>/projects/5gnr_phy_stl`
+
 Recommended GUI launch:
 
 ```powershell
@@ -47,6 +53,12 @@ Recommended GUI launch:
 ```
 
 `<radioconda-python>` means the `python.exe` inside the local Radioconda installation.
+
+Explicit interpreter examples:
+
+- Windows Radioconda: `C:\Users\<user>\AppData\Local\radioconda\python.exe`
+- Ubuntu/Linux Conda environment: `/home/<user>/miniforge3/envs/5gnr-phy/bin/python`
+- macOS Conda environment: `/Users/<user>/miniforge3/envs/5gnr-phy/bin/python`
 
 Fallback without GNU Radio:
 

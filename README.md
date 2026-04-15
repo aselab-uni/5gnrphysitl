@@ -212,6 +212,12 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
+Absolute-path examples for `<path-to-5gnr_phy_stl>`:
+
+- Windows: `D:\Projects\5gnr_phy_stl`
+- Ubuntu/Linux: `/home/<user>/projects/5gnr_phy_stl`
+- macOS: `/Users/<user>/projects/5gnr_phy_stl`
+
 If activation is blocked, install packages with the local interpreter directly:
 
 ```powershell
@@ -492,6 +498,12 @@ cd <path-to-5gnr_phy_stl>
 ```
 
 Here, `<path-to-5gnr_phy_stl>` means the local directory where you cloned or unpacked this repository.
+
+Absolute-path examples:
+
+- Windows: `D:\Projects\5gnr_phy_stl`
+- Ubuntu/Linux: `/home/<user>/projects/5gnr_phy_stl`
+- macOS: `/Users/<user>/projects/5gnr_phy_stl`
 
 Verify the file exists:
 
@@ -801,6 +813,12 @@ Useful options:
 ```
 
 `<radioconda-python>` means the `python.exe` inside your local Radioconda installation.
+
+Explicit interpreter examples:
+
+- Windows Radioconda: `C:\Users\<user>\AppData\Local\radioconda\python.exe`
+- Ubuntu/Linux Conda environment: `/home/<user>/miniforge3/envs/5gnr-phy/bin/python`
+- macOS Conda environment: `/Users/<user>/miniforge3/envs/5gnr-phy/bin/python`
 
 What it does:
 

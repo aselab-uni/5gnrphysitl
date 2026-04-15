@@ -14,6 +14,12 @@ cd <path-to-5gnr_phy_stl>
 
 Replace `<path-to-5gnr_phy_stl>` with the local checkout path on the classroom machine.
 
+Absolute-path examples:
+
+- Windows: `D:\Projects\5gnr_phy_stl`
+- Ubuntu/Linux: `/home/<user>/projects/5gnr_phy_stl`
+- macOS: `/Users/<user>/projects/5gnr_phy_stl`
+
 Recommended interpreter:
 
 ```powershell
@@ -21,6 +27,12 @@ Recommended interpreter:
 ```
 
 `<radioconda-python>` means the `python.exe` inside your local Radioconda installation.
+
+Explicit interpreter examples:
+
+- Windows Radioconda: `C:\Users\<user>\AppData\Local\radioconda\python.exe`
+- Ubuntu/Linux Conda environment: `/home/<user>/miniforge3/envs/5gnr-phy/bin/python`
+- macOS Conda environment: `/Users/<user>/miniforge3/envs/5gnr-phy/bin/python`
 
 ---
 
