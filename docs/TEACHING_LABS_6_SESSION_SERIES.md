@@ -1,43 +1,79 @@
-# Teaching Labs 6 Session Series for 5G NR PHY STL
+# 6-Session Teaching Lab Series for 5G NR PHY STL
 
-## Purpose
+## Role of This Document
 
-Tai lieu nay bien repo hien tai thanh mot chuoi `6 bai lab` co the day that trong hoc phan `5G physical layer`.
+This document is the **student-facing lab sequence**.
 
-Moi bai lab duoc thiet ke theo logic:
+It is intentionally different from:
 
-- co muc tieu hoc tap ro
-- co lenh chay cu the
-- co cau hinh GUI / CLI cu the
-- co ket qua mong doi
-- co cau hoi thao luan
+- [TEACHING_DEMO_90_MINUTE.md](/D:/Data/Lectures/20252/MobiCom/Codex/5GNRPHYSITL/5gnr_phy_stl/docs/TEACHING_DEMO_90_MINUTE.md), which is the instructor-led live demo plan
+- [TEACHING_LABS_MATRIX.md](/D:/Data/Lectures/20252/MobiCom/Codex/5GNRPHYSITL/5gnr_phy_stl/docs/TEACHING_LABS_MATRIX.md), which is the compact lab lookup sheet
+
+Use this file when you want a **multi-week or multi-session lab progression** with deliverables and discussion prompts.
+
+## What This Lab Series Is Good For
+
+This series is a good fit for teaching:
+
+- link-level PHY processing
+- resource grid and reference-signal reasoning
+- downlink vs uplink behavior
+- synchronization and channel-estimation sensitivity
+- PRACH and PBCH roles
+- file transfer over PHY
+- SU-MIMO baseline and CSI loop concepts
+
+It is not designed to teach:
+
+- full HARQ behavior
+- MU-MIMO scheduling
+- Massive MIMO beam management
+- complete 5G protocol stack procedures
 
 ## Common Setup
 
-Thu muc goc:
+Project root:
 
 ```powershell
 cd D:\Data\Lectures\20252\MobiCom\Codex\5GNRPHYSITL\5gnr_phy_stl
 ```
 
-GUI khuyen nghi:
+Recommended GUI launch:
 
 ```powershell
 C:\Users\tuan.dotrong\AppData\Local\radioconda\python.exe main.py --config configs/default.yaml --gui
 ```
 
-Neu khong can GNU Radio:
+Fallback without GNU Radio:
 
 ```powershell
 .\.venv\Scripts\python.exe main.py --config configs/default.yaml --gui
 ```
 
-## Lab 1. End-to-End Downlink PHY
+## Suggested Sequence
+
+| Session | Theme | Main output |
+| --- | --- | --- |
+| `L1` | End-to-end PHY chain | stage/domain map |
+| `L2` | Resource grid and reference signals | annotated grid comparison |
+| `L3` | Uplink, PRACH, PBCH | role comparison sheet |
+| `L4` | Receiver realism and impairments | degradation analysis |
+| `L5` | File transfer over PHY | file success vs SNR study |
+| `L6` | SU-MIMO and CSI baseline | spatial-domain analysis report |
+
+---
+
+## Lab 1. End-to-End PHY Chain
 
 ### Objective
 
-- Hieu chuoi PHY downlink co ban
-- Xac dinh block nao lam gi trong TX, channel, RX
+- identify the main TX, channel, and RX stages
+- understand how data changes domain:
+  - bits
+  - symbols
+  - grid
+  - waveform
+  - soft information
 
 ### Run
 
@@ -45,10 +81,10 @@ Neu khong can GNU Radio:
 python main.py --config configs/default.yaml --gui
 ```
 
-### GUI settings
+### GUI Settings
 
-- `Mode = data`
 - `Direction = downlink`
+- `Mode = data`
 - `Modulation = QPSK`
 - `Channel model = awgn`
 - `SNR = 20 dB`
@@ -56,36 +92,44 @@ python main.py --config configs/default.yaml --gui
 - `Perfect sync = On`
 - `Perfect CE = On`
 
-### Student tasks
+### Student Tasks
 
-1. Bam `Step Mode`
-2. Liet ke ten cac block trong `PHY Pipeline`
-3. Ghi chu domain cua 5 stage:
-   - `Bits`
-   - `Modulation mapping`
-   - `Resource Grid + RS`
-   - `OFDM / IFFT + CP`
-   - `Soft LLR before decoding`
+1. Click `Step Mode`
+2. Walk through the `PHY Pipeline`
+3. Record at least 10 stages
+4. For each selected stage, state:
+   - input domain
+   - output domain
+   - purpose
 
-### Expected observations
+### Expected Outcome
 
 - `BER = 0`
 - `BLER = 0`
-- constellation sau EQ sach
-- CRC pass
+- clean post-EQ constellation
+- all major stages visible in order
 
 ### Deliverable
 
-- bang 2 cot:
-  - `Stage`
-  - `Input / Output domain`
+A table with columns:
+
+- `Stage`
+- `Input domain`
+- `Output domain`
+- `Purpose`
+
+### Discussion Prompt
+
+Why is `Soft LLR before decoding` more informative than just checking the final CRC?
+
+---
 
 ## Lab 2. Resource Grid and Reference Signals
 
 ### Objective
 
-- Phan biet `PDSCH`, `PDCCH/CORESET`, `PBCH/SSB`
-- Quan sat `DMRS`, `CSI-RS`, `SRS`, `PT-RS`
+- compare `data`, `control`, and `broadcast` mapping
+- identify where `DM-RS`, `PT-RS`, `CSI-RS`, `SRS`, and `PBCH-DMRS` appear
 
 ### Runs
 
@@ -95,7 +139,7 @@ Downlink control:
 python main.py --config configs/default.yaml --channel-type control --gui
 ```
 
-PBCH:
+PBCH / SSB:
 
 ```powershell
 python main.py --config configs/default.yaml --override configs/scenario_pbch_baseline.yaml --gui
@@ -107,35 +151,42 @@ Uplink data:
 python main.py --config configs/default.yaml --override configs/scenario_uplink_baseline.yaml --gui
 ```
 
-### Student tasks
+### Student Tasks
 
-1. So sanh allocation map cua:
-   - `data`
-   - `control`
-   - `pbch`
-2. Xac dinh:
-   - RE nao la payload
-   - RE nao la pilot/reference
-3. Giai thich vi sao `SRS` khong xuat hien trong downlink run
+1. Capture one allocation map for:
+   - downlink data
+   - downlink control
+   - PBCH / SSB
+2. Mark which RE regions correspond to:
+   - payload
+   - control
+   - broadcast
+   - reference signals
+3. State why `SRS` only appears in uplink data runs
 
-### Expected observations
+### Expected Outcome
 
-- control co `CORESET / SearchSpace`
-- PBCH co `SSB / PBCH Broadcast Layout`
-- uplink data co `SRS`
-- downlink data/control co `CSI-RS`
-- scheduled data co `PT-RS`
+- control shows `CORESET / SearchSpace`
+- PBCH is confined to the `SSB` region
+- `CSI-RS` appears in downlink sounding contexts
+- `SRS` appears in uplink data contexts
 
 ### Deliverable
 
-- 3 hinh chup allocation map
-- 1 bang tong hop reference signals theo tung mode
+- 3 screenshots
+- 1 comparison table of reference-signal families
 
-## Lab 3. Uplink, PRACH, and Broadcast Roles
+### Discussion Prompt
+
+Why is `DM-RS` the main estimator input while `CSI-RS` and `SRS` play different roles?
+
+---
+
+## Lab 3. Uplink, PRACH, and PBCH Roles
 
 ### Objective
 
-- Phan biet:
+- distinguish:
   - `PUSCH-style`
   - `PUCCH-style`
   - `PRACH`
@@ -143,234 +194,229 @@ python main.py --config configs/default.yaml --override configs/scenario_uplink_
 
 ### Runs
 
-Uplink data:
-
 ```powershell
 python main.py --config configs/default.yaml --override configs/scenario_uplink_baseline.yaml --gui
-```
-
-Uplink control:
-
-```powershell
 python main.py --config configs/default.yaml --override configs/scenario_uplink_control_baseline.yaml --gui
-```
-
-PRACH:
-
-```powershell
 python main.py --config configs/default.yaml --override configs/scenario_uplink_prach_baseline.yaml --gui
-```
-
-PBCH:
-
-```powershell
 python main.py --config configs/default.yaml --override configs/scenario_pbch_baseline.yaml --gui
 ```
 
-### Student tasks
+### Student Tasks
 
-1. Tim 2 block co trong PRACH ma khong co trong PUSCH
-2. Tim 2 diem khac nhau giua PBCH va PDSCH
-3. Giai thich tai sao PRACH la `detection problem`, khong phai `file/data transport problem`
+1. Identify one stage unique to PRACH
+2. Identify one stage unique to PBCH / SSB
+3. Explain why PRACH is not a normal data-transport chain
+4. If enabled, compare uplink with and without `Transform precoding`
 
-### Expected observations
+### Expected Outcome
 
-- PRACH co `correlation detector`
-- uplink data co `transform precoding` option
-- uplink control co payload ngan hon va path control rieng
-- PBCH nam trong `SSB`
+- PRACH uses correlation-based detection logic
+- PBCH is tied to a broadcast region
+- uplink data and uplink control are not identical paths
 
 ### Deliverable
 
-- 1 slide so sanh `PUSCH / PUCCH / PRACH / PBCH`
+A one-page comparison:
 
-## Lab 4. Receiver Realism and Channel Impairments
+- `PUSCH`
+- `PUCCH`
+- `PRACH`
+- `PBCH`
+
+### Discussion Prompt
+
+Why is broadcast treated differently from scheduled data?
+
+---
+
+## Lab 4. Receiver Realism and Impairments
 
 ### Objective
 
-- Hieu tac dong cua:
-  - `Perfect sync`
-  - `Perfect CE`
-  - `CFO`
-  - `STO`
-  - `phase noise`
-  - `vehicular fading`
+- show how ideal assumptions hide difficulty
+- explain how impairments propagate through the PHY chain
 
 ### Runs
 
-GUI default:
+Default GUI:
 
 ```powershell
 python main.py --config configs/default.yaml --gui
 ```
 
-GUI vehicular:
+Vehicular case:
 
 ```powershell
 python main.py --config configs/default.yaml --override configs/scenario_vehicular.yaml --gui
 ```
 
-Batch impairment:
+Batch impairment sweep:
 
 ```powershell
 python run_experiments.py --experiment impairment_sweep --config configs/default.yaml --output-dir outputs
 ```
 
-### Student tasks
+### Student Tasks
 
-1. Chay voi `Perfect sync = On`, `Perfect CE = On`
-2. Lap lai voi ca hai `Off`
-3. Tang `CFO`
-4. Tang `STO`
-5. Chuyen sang `vehicular`
-6. Ghi lai block nao bat dau xuong cap truoc
+1. Run once with:
+   - `Perfect sync = On`
+   - `Perfect CE = On`
+2. Run again with both off
+3. Increase:
+   - `CFO`
+   - `STO`
+   - `phase noise`
+4. Compare to the vehicular channel case
+5. Record which artifact degrades first
 
-### Expected observations
+### Expected Outcome
 
-- timing metric va CFO trace xau di truoc khi CRC fail
-- channel estimate xau lam constellation sau EQ mo rong
-- `LLR` histogram kem chac chan hon
+- timing and CFO traces degrade before final failure
+- channel-estimate quality affects EQ quality
+- LLR confidence drops before CRC failure
 
 ### Deliverable
 
-- bang 3 cot:
-  - `Condition`
-  - `First artifact that degrades`
-  - `Final KPI impact`
+A table:
 
-## Lab 5. File Transfer over PHY
+- `Condition`
+- `First visibly degraded artifact`
+- `Final KPI impact`
+
+### Discussion Prompt
+
+Why can two runs have similar constellations but very different decoder reliability?
+
+---
+
+## Lab 5. File Transfer Over PHY
 
 ### Objective
 
-- Noi `PHY reliability` voi `application outcome`
-- So sanh file text nho va file anh lon
+- connect link-level PHY behavior to application-level success
+- compare a small text file and a larger image file
 
 ### Runs
 
-Text:
+GUI:
 
 ```powershell
 python main.py --config configs/default.yaml --override configs/scenario_text_transfer.yaml --gui
-```
-
-Image:
-
-```powershell
 python main.py --config configs/default.yaml --override configs/scenario_image_transfer.yaml --gui
 ```
 
-CLI alternative:
+CLI:
 
 ```powershell
 python main.py --config configs/default.yaml --tx-file input/sample_message.txt --rx-output-dir outputs/rx_files
 python main.py --config configs/default.yaml --tx-file input/sample_image.png --rx-output-dir outputs/rx_files
 ```
 
-### Student tasks
+### Student Tasks
 
-1. Chay text o `SNR = 40 dB`
-2. Chay image o `SNR = 40 dB`
-3. Giam `SNR`
-4. Tat `Perfect sync` va `Perfect CE`
-5. Ghi lai:
-   - so chunk
-   - co ghi file RX hay khong
-   - `chunks_failed`
+1. Run text at high SNR
+2. Run image at high SNR
+3. Lower SNR step by step
+4. Disable `Perfect sync` and `Perfect CE`
+5. Record:
+   - total chunks
+   - chunks failed
+   - whether the RX file is written
 
-### Expected observations
+### Expected Outcome
 
-- text de pass hon image
-- file lon nhay hon vi co nhieu chunk
-- chi can 1 chunk fail CRC la file khong duoc phuc hoi
+- text survives lower SNR more easily
+- image is more fragile because it spans more chunks
+- one bad chunk can block successful reconstruction
 
 ### Deliverable
 
-- bang:
-  - `File type`
-  - `SNR`
-  - `Success`
-  - `chunks_failed`
+A plot or table:
 
-## Lab 6. Batch Analytics and Mini Report
+- `File type`
+- `SNR`
+- `Success / fail`
+- `chunks_failed`
+
+### Discussion Prompt
+
+Why is file transfer behavior effectively “all or nothing” in the current implementation?
+
+---
+
+## Lab 6. SU-MIMO and CSI Baseline
 
 ### Objective
 
-- Day sinh vien cach thu nghiem co he thong
-- Day cach doc file CSV/plot va viet ket luan
+- introduce spatial domains beyond SISO
+- show the role of:
+  - `codeword`
+  - `layer`
+  - `port`
+  - `MIMO detector`
+  - `CSI feedback`
 
 ### Runs
 
-File-transfer sweep:
+Two-codeword SU-MIMO GUI:
 
 ```powershell
-python run_experiments.py --experiment sample_file_transfer_sweep --config configs/default.yaml --override configs/scenario_sample_file_transfer_sweep.yaml --output-dir outputs
+python main.py --config configs/default.yaml --override configs/scenario_su_mimo_two_codeword.yaml --gui
 ```
 
-BER sweep:
+CSI loop batch:
 
 ```powershell
-python run_experiments.py --experiment ber_vs_snr --config configs/default.yaml --output-dir outputs
+python run_experiments.py --experiment csi_loop_compare --config configs/default.yaml --override configs/scenario_su_mimo_csi_loop.yaml --output-dir outputs
 ```
 
-BLER sweep:
+### Student Tasks
 
-```powershell
-python run_experiments.py --experiment bler_vs_snr --config configs/default.yaml --output-dir outputs
-```
+1. Inspect:
+   - `Codeword Split`
+   - `Layer Mapping`
+   - `Precoding / Port Mapping`
+   - `MIMO Detection`
+   - `Layer Recovery / De-precoding`
+   - `CSI Feedback`
+2. Identify the selected:
+   - `RI`
+   - `PMI`
+   - modulation
+   - target rate
+3. Compare open-loop vs closed-loop batch results
 
-### Student tasks
+### Expected Outcome
 
-1. Mo file:
-   - `outputs/sample_inputs/file_transfer_sweep/file_transfer_sweep.csv`
-   - `outputs/sample_inputs/file_transfer_sweep/file_transfer_success_vs_snr.png`
-   - `outputs/sample_inputs/file_transfer_sweep/file_transfer_chunks_failed_vs_snr.png`
-2. Chon 1 trong 2 bai:
-   - `BER vs SNR`
-   - `File success vs SNR`
-3. Viet mini report `2 trang`
+- students see that SISO is not enough to explain MIMO processing
+- CSI affects transmission-state selection
+- detector choice and spatial structure become explicit artifacts
 
-### Required report sections
+### Deliverable
 
-- `Scenario`
-- `Configuration`
-- `Observed artifacts`
-- `Main KPI results`
-- `Interpretation`
-- `Limitations of the simulator`
+A short technical note with:
 
-### Expected outcome
+- one annotated screenshot from `PHY Pipeline`
+- one batch plot from `csi_loop_compare`
+- one paragraph explaining `CQI / PMI / RI`
 
-- sinh vien khong chi nhin GUI
-- sinh vien co the doc du lieu batch va viet ket luan ky thuat
+### Discussion Prompt
 
-## Suggested Semester Order
+Why does SU-MIMO require separate codeword, layer, and port domains instead of only “more antennas”?
 
-| Week | Lab | Theme |
-| --- | --- | --- |
-| `1` | `Lab 1` | End-to-end PHY chain |
-| `2` | `Lab 2` | Grid and reference signals |
-| `3` | `Lab 3` | DL vs UL vs RA vs broadcast |
-| `4` | `Lab 4` | Impairments and realistic receiver |
-| `5` | `Lab 5` | PHY impact on applications |
-| `6` | `Lab 6` | Batch analytics and reporting |
+---
 
-## What Students Should Not Overclaim
+## Suggested Assessment Model
 
-Can yeu cau sinh vien ghi ro:
+You can assess each lab with:
 
-- project nay chua co `MIMO`
-- chua co `HARQ`
-- chua co `CQI / PMI / RI`
-- chua co `scheduler / DCI` day du
-- `PBCH`, `CSI-RS`, `SRS`, `PT-RS`, `CORESET / SearchSpace` moi la baseline
+- `40%` correctness of observations
+- `30%` interpretation quality
+- `20%` use of artifact evidence
+- `10%` clarity of reporting
 
-Neu sinh vien viet report, nen co mot muc:
+## How This Series Avoids Overlap With the Demo Plan
 
-- `Simulator assumptions and realism limits`
-
-## Placeholder Additions
-
-- Placeholder: mau template report 2 trang
-- Placeholder: bo screenshot chuan cho 6 bai lab
-- Placeholder: rubric cham diem
-- Placeholder: dap an mau cho tung lab
+- This file is for **student work and deliverables**
+- [TEACHING_DEMO_90_MINUTE.md](/D:/Data/Lectures/20252/MobiCom/Codex/5GNRPHYSITL/5gnr_phy_stl/docs/TEACHING_DEMO_90_MINUTE.md) is for **instructor presentation flow**
+- [TEACHING_LABS_MATRIX.md](/D:/Data/Lectures/20252/MobiCom/Codex/5GNRPHYSITL/5gnr_phy_stl/docs/TEACHING_LABS_MATRIX.md) remains the **quick lookup sheet**

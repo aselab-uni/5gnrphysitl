@@ -861,8 +861,8 @@ Notes:
 - For a stage-by-stage technical explanation of the PHY chain aligned with the GUI pipeline, see `docs/TECHDOC_5G_NR_PHY_TRACE.md`.
 - For full-option PHY pipeline use cases and extension priorities, see `docs/FULL_OPTION_PHY_USECASES.md`.
 - For classroom-ready lab setups, GUI settings, commands, expected results, and discussion prompts, see `docs/TEACHING_LABS_MATRIX.md`.
-- For a ready-to-teach `90-minute` classroom demo plan, see `docs/TEACHING_DEMO_90_MINUTE.md`.
-- For a structured `6-session` teaching lab series, see `docs/TEACHING_LABS_6_SESSION_SERIES.md`.
+- For an instructor-led `90-minute` live classroom demo plan, see `docs/TEACHING_DEMO_90_MINUTE.md`.
+- For a student-facing structured `6-session` teaching lab series with deliverables, see `docs/TEACHING_LABS_6_SESSION_SERIES.md`.
 - For the proposed V2 target architecture of a more realistic NR PHY simulator, see `docs/NR_PHY_SIMULATOR_V2_ARCHITECTURE.md`.
 - For the implementation backlog to move from SISO teaching PHY to MIMO/HARQ/CSI-capable PHY, see `docs/NR_PHY_SIMULATOR_V2_BACKLOG.md`.
 - `docs/SHOWCASES_3GPP_PHY.md` also includes a checklist to distinguish a teaching model from a conformance-grade NR PHY.

@@ -1,106 +1,120 @@
-# Teaching Demo 90 Minutes for 5G NR PHY STL
+# 90-Minute Instructor Demo for 5G NR PHY STL
 
-## Scope
+## Role of This Document
 
-Tai lieu nay la giao an demo `90 phut` de day hoc bang chinh codebase hien tai.
+This document is the **instructor-led live demo script**.
 
-Muc tieu:
+It is intentionally different from:
 
-- gioi thieu cho sinh vien chuoi xu ly PHY cua 5G NR o muc link-level
-- cho sinh vien thay duoc su khac nhau giua `data`, `control`, `uplink`, `PRACH`, `PBCH`
-- lien he giua artifact trong GUI va KPI cuoi cung
-- ket noi `PHY behavior` voi `application outcome` thong qua file transfer
+- [TEACHING_LABS_6_SESSION_SERIES.md](/D:/Data/Lectures/20252/MobiCom/Codex/5GNRPHYSITL/5gnr_phy_stl/docs/TEACHING_LABS_6_SESSION_SERIES.md), which is the hands-on lab plan for students
+- [TEACHING_LABS_MATRIX.md](/D:/Data/Lectures/20252/MobiCom/Codex/5GNRPHYSITL/5gnr_phy_stl/docs/TEACHING_LABS_MATRIX.md), which is the compact reference matrix
 
-Tai lieu nay bam theo dung kha nang hien co cua repo, khong gia dinh da co MIMO, HARQ, CQI/PMI/RI, hay scheduler day du.
+Use this file when you want to **present the project in one class meeting** without turning the session into a full lab.
+
+## What This Project Can Reliably Demo Today
+
+With the current codebase, this project is strongest for teaching:
+
+- end-to-end 5G NR PHY link-level processing
+- downlink vs uplink PHY roles
+- `PDSCH`, `PDCCH/CORESET`, `PBCH/SSB`, `PRACH`
+- `DM-RS`, `PT-RS`, `CSI-RS`, `SRS`
+- synchronization, channel estimation, equalization, soft LLRs
+- file transfer over PHY as an application-level outcome
+- SU-MIMO baseline:
+  - `1-2 codewords`
+  - `1-4 layers`
+  - `2x2` and `4x4`
+  - `ZF`, `MMSE`, `OSIC`
+  - `CQI / PMI / RI` baseline loop
+
+It is **not** yet the right tool to claim:
+
+- full HARQ behavior
+- MU-MIMO
+- Massive MIMO
+- beam management / TCI / beam failure recovery
+- full MAC/RLC/RRC procedures
 
 ## Audience
 
-Phu hop cho:
+Recommended for:
 
-- sinh vien nam 3, nam 4 cac nganh vien thong / dien tu / mang
-- hoc vien cao hoc can mot cong cu truc quan de hieu link-level PHY
-- giang vien muon demo 5G PHY ma khong can SDR that
+- undergraduate telecom / electronics students
+- graduate PHY or wireless systems courses
+- a first lecture introducing link-level 5G NR processing
 
-## Prerequisites
+## Demo Goal
 
-- Project root:
-  - `D:\Data\Lectures\20252\MobiCom\Codex\5GNRPHYSITL\5gnr_phy_stl`
-- Moi truong:
-  - Windows PowerShell
-  - Radioconda hoac `.venv`
-- Neu muon co `TX sink` / `RX sink`, chay bang Radioconda
+At the end of 90 minutes, students should be able to:
 
-Lenh mo GUI khuyen nghi:
+- describe the PHY chain from bits to waveform and back
+- explain the difference between data, control, broadcast, and random access
+- read constellation, grid, channel, and LLR artifacts
+- understand the difference between idealized and realistic receiver assumptions
+- see why SU-MIMO adds `codeword -> layer -> port -> detector` domains
+
+## Pre-Class Setup
+
+Project root:
 
 ```powershell
 cd D:\Data\Lectures\20252\MobiCom\Codex\5GNRPHYSITL\5gnr_phy_stl
-C:\Users\tuan.dotrong\AppData\Local\radioconda\python.exe main.py --config configs/default.yaml --gui
 ```
 
-## Learning Outcomes
-
-Sau buoi demo, sinh vien nen:
-
-- mo ta duoc chuoi `Bits -> CRC -> Coding -> Rate Matching -> Scrambling -> QAM -> Grid -> OFDM -> Channel -> RX`
-- phan biet `downlink`, `uplink`, `random access`, `broadcast`
-- doc duoc `resource grid`, `reference signals`, `constellation`, `LLR`, `BER/BLER/EVM`
-- giai thich duoc vi sao `Perfect sync` / `Perfect CE` lam nguong loi dep hon
-- lien he duoc su suy giam PHY voi viec pass/fail khi truyen file text/anh
-
-## Demo Structure
-
-| Segment | Time | Main topic | Goal |
-| --- | --- | --- | --- |
-| `S1` | `0-10 min` | Setup + architecture orientation | Dat bo canh dung cho repo |
-| `S2` | `10-25 min` | End-to-end PHY chain | Hieu toan chuoi TX -> Channel -> RX |
-| `S3` | `25-40 min` | Resource grid, CORESET, SSB, reference signals | Hieu resource elements va pilot |
-| `S4` | `40-55 min` | Uplink, PRACH, PBCH | Hieu phan biet giua DL, UL, RA, broadcast |
-| `S5` | `55-75 min` | Imperfections and realistic receiver | Thay vi sao sync/CE la khoa |
-| `S6` | `75-90 min` | File transfer + batch analytics | Noi PHY voi outcome thuc te |
-
-## Segment S1. Setup and Orientation (0-10 min)
-
-### What to show
-
-- Cau truc project
-- Vai tro cua GUI
-- Y nghia cua `Run`, `Step Mode`, `Capture slots`
-
-### Files to reference
-
-- [README.md](/D:/Data/Lectures/20252/MobiCom/Codex/5GNRPHYSITL/5gnr_phy_stl/README.md)
-- [TECHDOC_5G_NR_PHY_TRACE.md](/D:/Data/Lectures/20252/MobiCom/Codex/5GNRPHYSITL/5gnr_phy_stl/docs/TECHDOC_5G_NR_PHY_TRACE.md)
-
-### Talk track
-
-- Repo nay la `software-only, link-level, visually inspectable NR PHY simulator`
-- No rat hop de day `PHY chain`, khong phai de day `full 5G system stack`
-- Diem manh lon nhat la `PHY Pipeline`
-
-### Instructor action
-
-Mo GUI:
+Recommended GUI launch:
 
 ```powershell
 C:\Users\tuan.dotrong\AppData\Local\radioconda\python.exe main.py --config configs/default.yaml --gui
 ```
 
-Chi nhanh:
+Fallback if GNU Radio is not needed:
 
-- panel trai: tham so
-- o giua: tabs
-- panel phai: KPI + log + environment status
+```powershell
+.\.venv\Scripts\python.exe main.py --config configs/default.yaml --gui
+```
 
-## Segment S2. End-to-End PHY Walkthrough (10-25 min)
+## Demo Structure
+
+| Segment | Time | Topic | Primary outcome |
+| --- | --- | --- | --- |
+| `D1` | `0-10 min` | Orientation | Students know what the project is and is not |
+| `D2` | `10-30 min` | End-to-end PHY walk | Students understand the TX -> channel -> RX chain |
+| `D3` | `30-50 min` | Grid and reference signals | Students see how NR occupies time-frequency resources |
+| `D4` | `50-65 min` | Uplink, PRACH, PBCH | Students separate PHY roles clearly |
+| `D5` | `65-80 min` | Realism and impairments | Students understand why receiver assumptions matter |
+| `D6` | `80-90 min` | SU-MIMO and file-transfer outcome | Students connect PHY details to spatial processing and application success |
+
+## D1. Orientation
+
+### What to say
+
+- This repository is a **software-only, link-level, visually inspectable NR PHY simulator**
+- It is ideal for PHY teaching and debugging
+- It is not a full 5G system simulator
+
+### What to show
+
+- GUI left panel
+- central tabs
+- right-hand KPI/status panel
+
+### Key UI concepts
+
+- `Run`: execute and inspect final outputs
+- `Step Mode`: execute and jump into stage-by-stage PHY playback
+- `Capture slots`: how many slots to retain for scrubbing
+
+## D2. End-to-End PHY Walk
 
 ### Scenario
 
-Baseline downlink data.
+Use the default downlink data run.
 
-### GUI settings
+### Suggested settings
 
-- `Mode = data`
 - `Direction = downlink`
+- `Mode = data`
 - `Modulation = QPSK`
 - `Channel model = awgn`
 - `SNR = 20 dB`
@@ -108,111 +122,89 @@ Baseline downlink data.
 - `Perfect sync = On`
 - `Perfect CE = On`
 
-### Instructor action
+### Instructor steps
 
-1. Bam `Step Mode`
-2. Vao tab `PHY Pipeline`
-3. Di qua tung block:
+1. Click `Step Mode`
+2. Open `PHY Pipeline`
+3. Walk students through:
    - `Traffic / transport block`
    - `TB CRC attachment`
    - `Code block segmentation + CB CRC`
    - `Channel coding`
    - `Rate matching`
    - `Scrambling`
-   - `Modulation mapping`
+   - `QAM mapping`
+   - `Codeword Split`
+   - `Layer Mapping`
+   - `Precoding / Port Mapping`
    - `Resource Grid + RS`
    - `OFDM / IFFT + CP`
-   - `RF/baseband impairments`
+   - `Channel / Impairments`
    - `Timing / CFO correction`
    - `Remove CP`
    - `FFT`
    - `Resource element extraction`
    - `Channel estimation`
    - `Equalization`
+   - `MIMO Detection`
+   - `Layer Recovery / De-precoding`
    - `Soft demapping`
+   - `Descrambling`
    - `Rate recovery`
    - `Soft LLR before decoding`
    - `Decoding`
    - `CRC check`
 
-### Questions to ask students
+### Questions to ask
 
-- Block nao chuyen tu `bits` sang `symbols`?
-- Block nao chuyen tu `grid` sang `waveform`?
-- Tai sao decoder can `LLR` thay vi chi hard bits?
+- Which stage first leaves the bit domain?
+- Which stage first leaves the symbol domain?
+- Why does the decoder consume soft information rather than just hard decisions?
 
-### Expected outcome
-
-- constellation sach
-- `BER = 0`
-- `BLER = 0`
-- sinh vien nam duoc chuoi end-to-end
-
-## Segment S3. Resource Grid, CORESET, SSB, and Reference Signals (25-40 min)
+## D3. Resource Grid and Reference Signals
 
 ### Goal
 
-Cho sinh vien thay su khac nhau giua:
+Show that 5G NR is not “just OFDM + QAM”; it is structured by **channels and reference signals**.
 
-- `PDSCH-style`
-- `PDCCH/CORESET-style`
-- `SSB/PBCH-style`
-- `DMRS`, `CSI-RS`, `SRS`, `PT-RS`
+### Demo sequence
 
-### Part A. Downlink control
-
-Run:
+#### Downlink control
 
 ```powershell
 python main.py --config configs/default.yaml --channel-type control --gui
 ```
 
-Hoac:
+Highlight:
 
-```powershell
-python main.py --config configs/default.yaml --gui
-```
+- `CORESET / SearchSpace`
+- control mapping vs data mapping
 
-roi dat:
-
-- `Mode = control`
-- `Direction = downlink`
-
-### What to highlight
-
-- `CORESET / SearchSpace selection` stage
-- allocation map trong `Resource Grid`
-- vi sao control khong map giong data
-
-### Part B. PBCH / SSB
-
-Run:
+#### PBCH / SSB
 
 ```powershell
 python main.py --config configs/default.yaml --override configs/scenario_pbch_baseline.yaml --gui
 ```
 
-### What to highlight
+Highlight:
 
 - `SSB / PBCH Broadcast Layout`
-- vung `SSB`
 - `PSS`, `SSS`, `PBCH-DMRS`
-- PBCH payload chi nam trong mot phan cua broadcast region
 
-### Reference-signal discussion
+#### Reference signals to mention
 
-Chi cho sinh vien:
+- `DM-RS`: main estimator input
+- `CSI-RS`: sounding / CSI baseline
+- `SRS`: uplink sounding
+- `PT-RS`: phase-tracking baseline
 
-- `DMRS` dung cho estimation chinh
-- `CSI-RS` dung cho sounding / future CSI logic
-- `SRS` chi co tren uplink
-- `PT-RS` dung de pha-tracking quan sat duoc, chua phai full 3GPP procedure
+### Student takeaway
 
-## Segment S4. Uplink, PRACH, and PBCH Roles (40-55 min)
+Different PHY procedures occupy the grid differently and expose different pilot structures.
 
-### Part A. Uplink data
+## D4. Uplink, PRACH, and PBCH Roles
 
-Run:
+### Uplink data
 
 ```powershell
 python main.py --config configs/default.yaml --override configs/scenario_uplink_baseline.yaml --gui
@@ -220,18 +212,10 @@ python main.py --config configs/default.yaml --override configs/scenario_uplink_
 
 Highlight:
 
-- `Direction = uplink`
-- `PUSCH-style`
-- `Transform precoding` toggle
+- `PUSCH-style` path
+- optional `Transform precoding`
 
-Neu muon doi sang DFT-s-OFDM style:
-
-- tick `Transform precoding`
-- bam `Run`
-
-### Part B. Uplink control
-
-Run:
+### Uplink control
 
 ```powershell
 python main.py --config configs/default.yaml --override configs/scenario_uplink_control_baseline.yaml --gui
@@ -239,13 +223,10 @@ python main.py --config configs/default.yaml --override configs/scenario_uplink_
 
 Highlight:
 
-- control payload ngan
-- `PUCCH-style`
-- control coder khac data coder
+- control payload path
+- shorter payload and different coding assumptions
 
-### Part C. PRACH
-
-Run:
+### PRACH
 
 ```powershell
 python main.py --config configs/default.yaml --override configs/scenario_uplink_prach_baseline.yaml --gui
@@ -253,152 +234,105 @@ python main.py --config configs/default.yaml --override configs/scenario_uplink_
 
 Highlight:
 
-- PRACH khong phai data link
-- `PRACH preamble generation`
-- `PRACH correlation detector`
-- `PRACH decision`
+- preamble generation
+- correlation detection
+- random access is a detection problem, not a data-transfer problem
 
-### Questions to ask students
-
-- PRACH khac PUSCH o diem nao?
-- Tai sao PBCH la broadcast path, con PRACH la access path?
-
-## Segment S5. Imperfections and Realistic Receiver (55-75 min)
+## D5. Realism and Impairments
 
 ### Goal
 
-Cho sinh vien thay:
+Show the difference between:
 
-- receiver ly tuong va receiver thuc te khac nhau the nao
-- impairment xuat hien som nhat o artifact nao
+- ideal assumptions
+- more realistic PHY behavior
 
-### GUI settings
+### Suggested sequence
 
-Ban 1:
-
-- `Perfect sync = On`
-- `Perfect CE = On`
-
-Ban 2:
-
-- `Perfect sync = Off`
-- `Perfect CE = Off`
-
-Sau do thay doi:
-
-- `CFO`
-- `STO`
-- `Phase noise`
-- `SNR`
-
-### Suggested run order
-
-1. `SNR = 20 dB`, perfect on
-2. `SNR = 20 dB`, perfect off
-3. tang `CFO`
-4. tang `STO`
-5. chuyen sang `vehicular`
-
-Lenh scenario vehicular:
+1. Run with:
+   - `Perfect sync = On`
+   - `Perfect CE = On`
+2. Run again with both off
+3. Increase:
+   - `CFO`
+   - `STO`
+   - `phase noise`
+4. Switch to a more challenging channel:
 
 ```powershell
 python main.py --config configs/default.yaml --override configs/scenario_vehicular.yaml --gui
 ```
 
-### What to show
+### What to point out
 
-- `Timing / CFO correction`
-- `Remove CP`
-- `FFT`
-- `Channel estimation`
-- `Equalization`
-- `Soft LLR before decoding`
-- KPI: `BER`, `BLER`, `EVM`, `estimated_snr_db`
+- timing metric changes first
+- channel estimate quality degrades
+- constellation spreads after channel and before decoder failure
+- LLR histogram becomes less confident before CRC failure
 
-### Teaching message
+## D6. SU-MIMO and File-Transfer Outcome
 
-- loi he thong khong nhat thiet bat dau o decoder
-- nhieu khi no bat dau tu sync hoac CE, sau do moi lan toi `LLR` va `CRC`
+### Part A. SU-MIMO baseline
 
-## Segment S6. File Transfer and Batch Analytics (75-90 min)
+Use:
 
-### Part A. Text and image transfer
+```powershell
+python main.py --config configs/default.yaml --override configs/scenario_su_mimo_two_codeword.yaml --gui
+```
 
-Run:
+Focus on:
+
+- `Codeword Split`
+- `Layer Mapping`
+- `Precoding / Port Mapping`
+- `MIMO Detection`
+- `Layer Recovery / De-precoding`
+- `CSI Feedback`
+
+Message to students:
+
+- SISO has one dominant logical stream
+- SU-MIMO introduces `codeword`, `layer`, `port`, and detector structure
+
+### Part B. File transfer as application outcome
+
+Use:
 
 ```powershell
 python main.py --config configs/default.yaml --override configs/scenario_text_transfer.yaml --gui
 python main.py --config configs/default.yaml --override configs/scenario_image_transfer.yaml --gui
 ```
 
-### What to show
+Highlight:
 
-- `File Source + Packaging`
-- `File Reassembly + Write`
-- ten file RX co `snr` + `timestamp`
-- file text thuong de pass hon file anh
+- file packaging
+- chunking
+- PHY transport
+- RX reconstruction
 
-### Main teaching point
+Message to students:
 
-Application-level result la `all-or-nothing`:
+- BER/BLER are not abstract numbers only
+- PHY degradation can directly decide whether an application payload is usable
 
-- tat ca chunks pass -> file RX byte-perfect
-- chi can 1 chunk fail -> file khong duoc ghi
+## Recommended Questions for the Last 5 Minutes
 
-### Part B. Batch sweep
+- Which artifact best explains why a run passes or fails?
+- Why is PBCH not “just another data channel”?
+- Why can a large image fail even when many chunks decode correctly?
+- Why does SU-MIMO require new domains beyond the classic SISO chain?
 
-Run:
+## Suggested Follow-Up
 
-```powershell
-python run_experiments.py --experiment sample_file_transfer_sweep --config configs/default.yaml --override configs/scenario_sample_file_transfer_sweep.yaml --output-dir outputs
-```
+After this live demo, the natural next step is to assign:
 
-Open and discuss:
+- [TEACHING_LABS_6_SESSION_SERIES.md](/D:/Data/Lectures/20252/MobiCom/Codex/5GNRPHYSITL/5gnr_phy_stl/docs/TEACHING_LABS_6_SESSION_SERIES.md) for structured student labs
+- [TEACHING_LABS_MATRIX.md](/D:/Data/Lectures/20252/MobiCom/Codex/5GNRPHYSITL/5gnr_phy_stl/docs/TEACHING_LABS_MATRIX.md) for quick lab lookup
 
-- `outputs/sample_inputs/file_transfer_sweep/file_transfer_sweep.csv`
-- `outputs/sample_inputs/file_transfer_sweep/file_transfer_success_vs_snr.png`
-- `outputs/sample_inputs/file_transfer_sweep/file_transfer_chunks_failed_vs_snr.png`
+## Instructor Notes
 
-### Wrap-up message
+Keep the framing precise:
 
-- cung mot PHY chain
-- text va image co behavior khac nhau do `chunk count`
-- day la cau noi rat tot tu `PHY KPI` sang `user-perceived outcome`
-
-## Teaching Risks and How to Frame Them
-
-Can noi ro voi sinh vien:
-
-- repo nay **khong co MIMO**
-- repo nay **khong co HARQ soft combining**
-- `CSI-RS`, `SRS`, `PT-RS`, `PBCH`, `CORESET` moi la baseline
-- day la `teaching / research simulator`, khong phai `conformance-grade NR stack`
-
-Neu noi ro nhu vay, repo se rat manh cho day hoc thay vi gay hieu nham.
-
-## Minimal Demo Checklist
-
-Truoc gio day, chay truoc:
-
-```powershell
-python -m pytest -q
-python main.py --config configs/default.yaml
-python main.py --config configs/default.yaml --override configs/scenario_pbch_baseline.yaml
-python main.py --config configs/default.yaml --override configs/scenario_uplink_prach_baseline.yaml
-```
-
-Trong lop, can mo san:
-
-- GUI default
-- GUI PBCH
-- GUI PRACH
-- file text/image sample
-- batch output folder
-
-## Placeholder Figures
-
-- Placeholder: screenshot `PHY Pipeline` o baseline downlink data
-- Placeholder: screenshot `CORESET / SearchSpace Selection`
-- Placeholder: screenshot `SSB / PBCH Broadcast Layout`
-- Placeholder: screenshot `PRACH correlation detector`
-- Placeholder: screenshot `File Reassembly + Write`
+- say “SU-MIMO baseline” rather than “full real-world MIMO stack”
+- say “software-only PHY simulator” rather than “complete 5G system”
+- use the visual strengths of the repo instead of overselling unimplemented procedures
