@@ -12,8 +12,10 @@ from channel.fading_channel import FadingChannel
 from channel.impairments import apply_impairments
 from phy.artifacts import normalize_pipeline_stage
 from phy.csi import report_csi
+from phy.coding import build_channel_coder
 from phy.context import SlotContext
-from phy.kpi import LinkKpiSummary, bit_error_rate, spectral_efficiency_bps_hz
+from phy.harq import HarqProcessManager
+from phy.kpi import LinkKpiSummary, bit_error_rate, block_error_rate, spectral_efficiency_bps_hz, throughput_bps
 from phy.receiver import NrReceiver
 from phy.resource_grid import ResourceGrid
 from phy.transmitter import NrTransmitter
@@ -110,6 +112,10 @@ def _csi_replay_supported(channel_type: str) -> bool:
     return str(channel_type).lower() not in {"prach", "pbch", "broadcast"}
 
 
+def _harq_supported(channel_type: str) -> bool:
+    return str(channel_type).lower() in {"data", "pdsch", "pusch"}
+
+
 def _apply_csi_feedback_to_config(config: Dict[str, Any], feedback: dict[str, object], *, allow_rank_update: bool) -> Dict[str, Any]:
     updated = deepcopy(config)
     updated.setdefault("precoding", {})
@@ -134,6 +140,155 @@ def _apply_csi_feedback_to_config(config: Dict[str, Any], feedback: dict[str, ob
     updated["modulation"]["scheme"] = str(feedback.get("modulation", updated["modulation"].get("scheme", "QPSK"))).upper()
     updated["coding"]["target_rate"] = float(feedback.get("target_rate", updated["coding"].get("target_rate", 0.5)))
     return updated
+
+
+def _decode_rate_recovered_codewords(
+    *,
+    config: Dict[str, Any],
+    tx_metadata,
+    combined_by_codeword: tuple[np.ndarray, ...],
+) -> dict[str, object]:
+    coder = build_channel_coder(channel_type=tx_metadata.channel_type, config=config)
+    codeword_coding_metadata = tuple(getattr(tx_metadata, "codeword_coding_metadata", ()) or (tx_metadata.coding_metadata,))
+
+    recovered_bits_by_codeword: list[np.ndarray] = []
+    rate_recovered_llrs_by_codeword: list[np.ndarray] = []
+    decoder_input_llrs_by_codeword: list[np.ndarray] = []
+    codeword_crc_ok: list[bool] = []
+    rate_recovered_code_blocks: list[np.ndarray] = []
+    decoder_input_code_blocks: list[np.ndarray] = []
+    recovered_code_blocks: list[np.ndarray] = []
+    code_block_crc_ok: list[bool] = []
+
+    for codeword_index, combined_llrs in enumerate(combined_by_codeword):
+        coding_metadata = codeword_coding_metadata[min(codeword_index, len(codeword_coding_metadata) - 1)]
+        if hasattr(coder, "decode_rate_recovered_with_trace"):
+            recovered_bits, crc_ok, decode_trace = coder.decode_rate_recovered_with_trace(combined_llrs, coding_metadata)
+        else:  # pragma: no cover
+            recovered_bits, crc_ok, decode_trace = coder.decode(combined_llrs, coding_metadata), False, None
+
+        recovered_bits_by_codeword.append(np.asarray(recovered_bits, dtype=np.uint8).copy())
+        rate_recovered_llrs_by_codeword.append(np.asarray(combined_llrs, dtype=np.float64).copy())
+        codeword_crc_ok.append(bool(crc_ok))
+        if decode_trace is not None:
+            decoder_input = (
+                np.concatenate(decode_trace.decoder_input_blocks)
+                if decode_trace.decoder_input_blocks
+                else np.array([], dtype=np.float64)
+            )
+            decoder_input_llrs_by_codeword.append(decoder_input.copy())
+            rate_recovered_code_blocks.extend(block.copy() for block in decode_trace.rate_recovered_blocks)
+            decoder_input_code_blocks.extend(block.copy() for block in decode_trace.decoder_input_blocks)
+            recovered_code_blocks.extend(block.copy() for block in decode_trace.recovered_code_blocks)
+            code_block_crc_ok.extend(bool(value) for value in decode_trace.code_block_crc_ok)
+        else:
+            decoder_input_llrs_by_codeword.append(np.asarray(combined_llrs, dtype=np.float64).copy())
+
+    concat_float = lambda values: np.concatenate(values) if values else np.array([], dtype=np.float64)
+    concat_bits = lambda values: np.concatenate(values) if values else np.array([], dtype=np.uint8)
+    recovered_bits = concat_bits(recovered_bits_by_codeword)
+    return {
+        "recovered_bits": recovered_bits,
+        "crc_ok": bool(all(codeword_crc_ok)),
+        "recovered_bits_by_codeword": tuple(block.copy() for block in recovered_bits_by_codeword),
+        "rate_recovered_llrs": concat_float(rate_recovered_llrs_by_codeword),
+        "rate_recovered_llrs_by_codeword": tuple(block.copy() for block in rate_recovered_llrs_by_codeword),
+        "decoder_input_llrs": concat_float(decoder_input_llrs_by_codeword),
+        "decoder_input_llrs_by_codeword": tuple(block.copy() for block in decoder_input_llrs_by_codeword),
+        "rate_recovered_code_blocks": tuple(block.copy() for block in rate_recovered_code_blocks),
+        "decoder_input_code_blocks": tuple(block.copy() for block in decoder_input_code_blocks),
+        "recovered_code_blocks": tuple(block.copy() for block in recovered_code_blocks),
+        "code_block_crc_ok": tuple(code_block_crc_ok),
+        "codeword_crc_ok": tuple(codeword_crc_ok),
+    }
+
+
+def _apply_harq_soft_combining(
+    *,
+    result: Dict[str, Any],
+    process,
+    harq_info: dict[str, object],
+    config: Dict[str, Any],
+) -> dict[str, object]:
+    rx = result["rx"]
+    tx = result["tx"]
+    combined = process.combine(
+        tuple(np.asarray(block, dtype=np.float64) for block in rx.rate_recovered_llrs_by_codeword),
+        soft_combining=bool(harq_info.get("soft_combining", True)),
+    )
+    decoded = _decode_rate_recovered_codewords(
+        config=config,
+        tx_metadata=tx.metadata,
+        combined_by_codeword=combined,
+    )
+
+    rx.rate_recovered_llrs = np.asarray(decoded["rate_recovered_llrs"], dtype=np.float64)
+    rx.rate_recovered_llrs_by_codeword = tuple(decoded["rate_recovered_llrs_by_codeword"])
+    rx.decoder_input_llrs = np.asarray(decoded["decoder_input_llrs"], dtype=np.float64)
+    rx.decoder_input_llrs_by_codeword = tuple(decoded["decoder_input_llrs_by_codeword"])
+    rx.recovered_bits = np.asarray(decoded["recovered_bits"], dtype=np.uint8)
+    rx.recovered_bits_by_codeword = tuple(decoded["recovered_bits_by_codeword"])
+    rx.rate_recovered_code_blocks = tuple(decoded["rate_recovered_code_blocks"])
+    rx.decoder_input_code_blocks = tuple(decoded["decoder_input_code_blocks"])
+    rx.recovered_code_blocks = tuple(decoded["recovered_code_blocks"])
+    rx.code_block_crc_ok = tuple(decoded["code_block_crc_ok"])
+    rx.codeword_crc_ok = tuple(decoded["codeword_crc_ok"])
+    rx.crc_ok = bool(decoded["crc_ok"])
+
+    slot_duration_s = tx.metadata.numerology.slot_length_samples / tx.metadata.numerology.sample_rate
+    bandwidth_hz = float(config.get("carrier", {}).get("bandwidth_hz", tx.metadata.numerology.active_subcarriers * tx.metadata.numerology.subcarrier_spacing_hz))
+    rx.kpis.ber = bit_error_rate(tx.metadata.payload_bits, rx.recovered_bits)
+    rx.kpis.bler = block_error_rate(rx.crc_ok)
+    rx.kpis.crc_ok = bool(rx.crc_ok)
+    rx.kpis.throughput_bps = throughput_bps(rx.recovered_bits.size, slot_duration_s=slot_duration_s, crc_ok=rx.crc_ok)
+    rx.kpis.spectral_efficiency_bps_hz = spectral_efficiency_bps_hz(rx.kpis.throughput_bps, bandwidth_hz)
+    rx.kpis.extra.update(
+        {
+            "harq_enabled": 1.0,
+            "harq_process_id": float(harq_info.get("process_id", 0)),
+            "harq_attempt_index": float(harq_info.get("attempt_index", 0)),
+            "harq_redundancy_version": float(harq_info.get("rv", 0)),
+            "harq_soft_observations": float(max(len(combined), 1) and int(harq_info.get("soft_observations", 1))),
+        }
+    )
+    result["kpis"] = rx.kpis
+    result["harq_feedback"] = {
+        **harq_info,
+        "ack": bool(rx.crc_ok),
+        "soft_observations": int(harq_info.get("soft_observations", 1)),
+        "combined_llr_energy": float(sum(float(np.mean(np.abs(block))) for block in combined if block.size)),
+    }
+    return result["harq_feedback"]
+
+
+def _insert_harq_pipeline_stage(result: Dict[str, Any], harq_feedback: dict[str, object]) -> None:
+    rx = result["rx"]
+    pipeline = list(result.get("pipeline", []))
+    insertion_index = next(
+        (index + 1 for index, stage in enumerate(pipeline) if stage.get("stage") == "Rate recovery"),
+        len(pipeline),
+    )
+    pipeline.insert(
+        insertion_index,
+        {
+            "section": "RX",
+            "stage": "HARQ soft combining",
+            "domain": "llr",
+            "description": "Rate-recovered LLRs are accumulated in a HARQ soft buffer before decoding retransmitted transport blocks.",
+            "preview_kind": "llr",
+            "data": rx.rate_recovered_llrs,
+            "artifact_type": "llr",
+            "input_shape": [int(dim) for dim in np.asarray(rx.rate_recovered_llrs).shape],
+            "output_shape": [int(dim) for dim in np.asarray(rx.decoder_input_llrs).shape],
+            "notes": (
+                f"Process {int(harq_feedback.get('process_id', 0))} | "
+                f"Attempt {int(harq_feedback.get('attempt_index', 0))} | "
+                f"RV {int(harq_feedback.get('rv', 0))} | "
+                f"ACK={bool(harq_feedback.get('ack', False))}"
+            ),
+        },
+    )
+    result["pipeline"] = _normalize_pipeline(pipeline)
 
 
 def _payload_size_bits_for_channel(config: Dict, channel_type: str) -> int:
@@ -1303,15 +1458,45 @@ def simulate_link_sequence(
     slot_results: list[Dict[str, Any]] = []
     csi_trace: list[dict[str, object]] = []
     schedule_trace: list[dict[str, object]] = []
+    harq_trace: list[dict[str, object]] = []
     replay_enabled = bool(sequence_config.get("csi", {}).get("replay_feedback", False)) and _csi_replay_supported(active_channel_type)
+    harq_manager = HarqProcessManager(sequence_config)
+    harq_enabled = bool(harq_manager.enabled and _harq_supported(active_channel_type))
+    payload_rng = np.random.default_rng(int(sequence_config.get("simulation", {}).get("seed", 0)) + 911)
     for timeline_index in range(capture_slots):
+        slot_config = sequence_config
+        slot_payload_bits = payload_bits
+        harq_info: dict[str, object] | None = None
+        harq_process = None
+        if harq_enabled:
+            harq_process, slot_payload_bits, harq_info = harq_manager.prepare_payload(
+                timeline_index=timeline_index,
+                payload_bits=payload_bits,
+                payload_size_bits=_payload_size_bits_for_channel(sequence_config, active_channel_type),
+                rng=payload_rng,
+            )
+            slot_config = deepcopy(sequence_config)
+            slot_config.setdefault("coding", {})
+            slot_config["coding"]["redundancy_version"] = int(harq_info["rv"])
+
         slot_result = simulate_link(
-            config=sequence_config,
+            config=slot_config,
             channel_type=active_channel_type,
-            payload_bits=payload_bits,
+            payload_bits=slot_payload_bits,
             seed_offset=timeline_index,
             timeline_index=timeline_index,
         )
+        if harq_enabled and harq_info is not None and harq_process is not None:
+            harq_info["soft_observations"] = int(harq_process.attempt_index + 1)
+            harq_feedback = _apply_harq_soft_combining(
+                result=slot_result,
+                process=harq_process,
+                harq_info=harq_info,
+                config=slot_config,
+            )
+            _insert_harq_pipeline_stage(slot_result, harq_feedback)
+            harq_trace.append({"timeline_index": int(timeline_index), **dict(harq_feedback)})
+            harq_process.complete_attempt(bool(slot_result["rx"].crc_ok))
         slot_results.append(slot_result)
         schedule_trace.append(
             {
@@ -1321,12 +1506,16 @@ def simulate_link_sequence(
                 "scheduled_pmi": str(slot_result["config"].get("precoding", {}).get("pmi", "n/a")),
                 "scheduled_modulation": str(slot_result["config"].get("modulation", {}).get("scheme", "QPSK")),
                 "scheduled_target_rate": float(slot_result["config"].get("coding", {}).get("target_rate", 0.5)),
+                "harq_process_id": int(harq_info.get("process_id", 0)) if harq_info else -1,
+                "harq_redundancy_version": int(harq_info.get("rv", 0)) if harq_info else int(slot_result["config"].get("coding", {}).get("redundancy_version", 0)),
+                "harq_ndi": int(harq_info.get("ndi", 0)) if harq_info else 0,
             }
         )
         if slot_result.get("csi_feedback") is not None:
             csi_entry = {"timeline_index": int(timeline_index), **dict(slot_result["csi_feedback"])}
             csi_trace.append(csi_entry)
-            if replay_enabled and timeline_index < capture_slots - 1:
+            harq_retx_pending = bool(harq_enabled and harq_process is not None and harq_process.active)
+            if replay_enabled and timeline_index < capture_slots - 1 and not harq_retx_pending:
                 sequence_config = _apply_csi_feedback_to_config(
                     sequence_config,
                     slot_result["csi_feedback"],
@@ -1351,6 +1540,10 @@ def simulate_link_sequence(
         "csi_replay_enabled": replay_enabled,
         "csi_trace": csi_trace,
         "schedule_trace": schedule_trace,
+        "harq_enabled": harq_enabled,
+        "harq_trace": harq_trace,
+        "harq_ack_count": int(sum(1 for entry in harq_trace if bool(entry.get("ack", False)))),
+        "harq_nack_count": int(sum(1 for entry in harq_trace if not bool(entry.get("ack", False)))),
     }
     return representative
 

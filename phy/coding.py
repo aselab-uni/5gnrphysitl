@@ -247,6 +247,14 @@ class NrLdpcInspiredCoder:
 
     def decode_with_trace(self, llrs: np.ndarray, metadata: CodingMetadata) -> tuple[np.ndarray, bool, DecodingTrace]:
         recovered = rate_recover_llrs(llrs, metadata)
+        return self.decode_rate_recovered_with_trace(recovered, metadata)
+
+    def decode_rate_recovered_with_trace(
+        self,
+        recovered: np.ndarray,
+        metadata: CodingMetadata,
+    ) -> tuple[np.ndarray, bool, DecodingTrace]:
+        recovered = np.asarray(recovered, dtype=np.float64)
         recovered_blocks = _split_by_lengths(recovered, metadata.mother_block_lengths)
         decoder_input_blocks = []
         recovered_code_blocks = []
@@ -348,6 +356,14 @@ class PolarLikeControlCoder:
 
     def decode_with_trace(self, llrs: np.ndarray, metadata: CodingMetadata) -> tuple[np.ndarray, bool, DecodingTrace]:
         recovered = rate_recover_llrs(llrs, metadata)
+        return self.decode_rate_recovered_with_trace(recovered, metadata)
+
+    def decode_rate_recovered_with_trace(
+        self,
+        recovered: np.ndarray,
+        metadata: CodingMetadata,
+    ) -> tuple[np.ndarray, bool, DecodingTrace]:
+        recovered = np.asarray(recovered, dtype=np.float64)
         deinterleaved = np.zeros_like(recovered)
         assert metadata.interleaver is not None
         deinterleaved[np.asarray(metadata.interleaver, dtype=int)] = recovered

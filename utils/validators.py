@@ -49,6 +49,19 @@ def validate_config(config: dict) -> dict:
     if not normalized_precoders.issubset({"identity", "dft", "type1_sp"}):
         raise ValueError("csi.candidate_precoders must only contain: identity, dft, type1_sp.")
 
+    harq = config.get("harq", {})
+    if int(harq.get("process_count", 1)) < 1:
+        raise ValueError("harq.process_count must be at least 1.")
+    if int(harq.get("max_retransmissions", 0)) < 0:
+        raise ValueError("harq.max_retransmissions must be non-negative.")
+    rv_sequence = harq.get("rv_sequence", [0, 2, 3, 1])
+    if isinstance(rv_sequence, str):
+        rv_sequence = [part.strip() for part in rv_sequence.split(",") if part.strip()]
+    if not rv_sequence:
+        raise ValueError("harq.rv_sequence must contain at least one redundancy version.")
+    if any(int(rv) < 0 or int(rv) > 3 for rv in rv_sequence):
+        raise ValueError("harq.rv_sequence values must be in [0, 3].")
+
     coding = config.get("coding", {})
     if int(coding.get("code_block_payload_bits", 1)) < 1:
         raise ValueError("coding.code_block_payload_bits must be at least 1.")
