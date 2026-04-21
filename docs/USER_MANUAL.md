@@ -178,8 +178,8 @@ If the virtual environment has `build` installed:
 
 Expected outputs:
 
-- `dist/fivegnr_phy_stl-2.2.0.tar.gz`
-- `dist/fivegnr_phy_stl-2.2.0-py3-none-any.whl`
+- `dist/fivegnr_phy_stl-2.3.0.tar.gz`
+- `dist/fivegnr_phy_stl-2.3.0-py3-none-any.whl`
 
 ## 6. Running the Project
 

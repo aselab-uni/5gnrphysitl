@@ -2460,9 +2460,35 @@ class PhyPipelinePanel(QWidget):
             return
         x_axis = np.arange(waveform.size)
         plot_item.setLabel("bottom", payload.get("x_label", "Sample"))
-        plot_item.setLabel("left", payload.get("y_label", "Amplitude"))
-        plot_item.plot(x_axis, waveform.real, pen=pg.mkPen("#60a5fa", width=1.2))
-        plot_item.plot(x_axis, waveform.imag, pen=pg.mkPen("#f59e0b", width=1.2))
+        plot_item.setLabel("left", payload.get("y_label", "Amplitude"), units="linear autoscaled")
+        plot_item.addLegend(offset=(10, 10))
+        plot_item.plot(x_axis, waveform.real, pen=pg.mkPen("#60a5fa", width=1.2), name="I / real")
+        plot_item.plot(x_axis, waveform.imag, pen=pg.mkPen("#f59e0b", width=1.2), name="Q / imag")
+        plot_item.plot(
+            x_axis,
+            np.abs(waveform),
+            pen=pg.mkPen("#22c55e", width=1.0, style=Qt.PenStyle.DotLine),
+            name="|x|",
+        )
+
+        y_values = np.concatenate([waveform.real, waveform.imag, np.abs(waveform)])
+        finite = y_values[np.isfinite(y_values)]
+        if finite.size:
+            y_min = float(np.min(finite))
+            y_max = float(np.max(finite))
+            peak = max(abs(y_min), abs(y_max), 1e-12)
+            if np.isclose(y_min, y_max):
+                y_min, y_max = -peak, peak
+            padding = max(0.12 * (y_max - y_min), 0.08 * peak)
+            plot_item.setYRange(y_min - padding, y_max + padding, padding=0.0)
+            stats = pg.TextItem(
+                f"Autoscaled view | peak={peak:.3e} | RMS={np.sqrt(np.mean(np.abs(waveform) ** 2)):.3e}",
+                color="#d8dee9",
+                anchor=(0.0, 1.0),
+            )
+            stats.setPos(float(x_axis[0]), y_max + padding)
+            plot_item.addItem(stats)
+        plot_item.setXRange(float(x_axis[0]), float(x_axis[-1]), padding=0.01)
 
     @staticmethod
     def _plot_line(plot_item: pg.PlotItem, payload: dict[str, Any]) -> None:
